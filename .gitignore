@@ -1,0 +1,11 @@
+# vim files
+*.swp
+*~
+
+# In general
+*.txt
+*.diff
+test*
+
+# for satellite tracker
+

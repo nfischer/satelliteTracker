@@ -49,12 +49,12 @@ line1 = "1 25544U 98067A   14164.88420351  .00007379  00000-0  13387-3 0  4847"
 line2 = "2 25544  51.6468 115.9516 0004435  99.2984 357.3865 15.50694927890818"
 
 f = open('tles.txt', 'r')
-
-
+tleString = f.read()
 f.close()
 
+lines = tleString.split('\n')
 
-iss = ephem.readtle(name, line1, line2)
+iss = ephem.readtle(name, lines[1], lines[2])
 
 grnd = ephem.Observer()
 grnd.long = -118.45 * ephem.degree

@@ -8,11 +8,13 @@
 # global "constants"
 REFRESH_TIME = 0.1 # in seconds
 SAT_NAME = "ISS"
+TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
 
 # global variables
 
 import sys
 import os
+import urllib2
 
 import time
 #import math
@@ -84,7 +86,22 @@ def updateTLE():
     # Updates the program's TLEs for satellites. It saves them on disc
     # Looks in the current directory for the TLE file
 
-    # todo
+    # fetch the webpage first
+    response = urllib2.urlopen(TLE_URL)
+    html = response.read() # returns a string
+    
+    # parse for the ISS (first 3 lines)
+    endSub = html.find('TIANGONG')
+    tleData = html[0:endSub]
+
+    # write the data to file
+    f = open('tles.txt', 'w')
+    f.write(tleData)
+    f.close()
+
+    # reload TLEs in satellite object
+    lines = tleData.split('\n')
+    iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
 
     return
     

@@ -42,21 +42,48 @@ def outputGrnd():
     print ""
     return 0
 
+def updateTLE():
+    # Updates the program's TLEs for satellites. It saves them on disc
+    # Looks in the current directory for the TLE file
+
+    # fetch the webpage first
+    response = urllib2.urlopen(TLE_URL)
+    #print "error"
+    #killProgram(1)
+        
+    html = response.read() # returns a string
+    
+    # parse for the ISS (first 3 lines)
+    endSub = html.find('TIANGONG')
+    tleData = html[0:endSub]
+
+    # write the data to file
+    f = open('tles.txt', 'w')
+    f.write(tleData)
+    f.close()
+
+    # reload TLEs in satellite object
+    lines = tleData.split('\n')
+    iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
+
+    return
+    
 # initialize satellite info
 name = SAT_NAME
 
 # TLE == "Two line elements"
 # pull the TLE from disc
-line1 = "1 25544U 98067A   14164.88420351  .00007379  00000-0  13387-3 0  4847"
-line2 = "2 25544  51.6468 115.9516 0004435  99.2984 357.3865 15.50694927890818"
-
 f = open('tles.txt', 'r')
 tleString = f.read()
 f.close()
 
 lines = tleString.split('\n')
 
-iss = ephem.readtle(name, lines[1], lines[2])
+try:
+    iss = ephem.readtle(name, lines[1], lines[2])
+except:
+    # there was an error with the file format
+    updateTLE()
 
 grnd = ephem.Observer()
 grnd.long = -118.45 * ephem.degree
@@ -65,10 +92,10 @@ grnd.elev = 95
 
 outputGrnd()
 
-def killProgram():
+def killProgram(status):
     print "\nProgram is terminating."
     #thread.interrupt_main() # kills main & all daemon threads
-    os._exit(0)
+    os._exit(status)
 
 def updateVariables():
     try:
@@ -88,6 +115,9 @@ def updateTLE():
 
     # fetch the webpage first
     response = urllib2.urlopen(TLE_URL)
+    #print "error"
+    #killProgram(1)
+        
     html = response.read() # returns a string
     
     # parse for the ISS (first 3 lines)
@@ -111,13 +141,13 @@ def printFunc():
         while 1:
             key = raw_input("Press enter to see values, q to quit: ")
             if key == "q" or key == "Q" or key == ";q":
-                killProgram()
+                killProgram(0)
                 sys.exit(0) # redundant, but safe
             elif key == "c" or key == "clear" or key == "cls":
                 os.system('clear');
             elif key == "u" or key == "up" or key == "update":
                 updateTLE()
-                print "done"
+                print "Update is complete"
             else:
                 # These values are computed live
                 print "ISS:"
@@ -151,9 +181,9 @@ def main():
     try:
         while 1:
             pass
-        killProgram()
+        killProgram(0)
     except:
-        killProgram()
+        killProgram(0)
 
 
 

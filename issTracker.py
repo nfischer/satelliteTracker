@@ -6,11 +6,15 @@
 # I want this to be the basic framework for the eventual commander
 
 # global "constants"
-REFRESH_TIME = 0.1 # in seconds
+REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
 
 # global variables
+
+#######################################
+## Import modules
+#######################################
 
 import sys
 import os
@@ -32,15 +36,41 @@ except:
 
     exit(1)
 
+#######################################
+## Functions
+#######################################
+
+def killProgram(status):
+    # This is the function that should be called to kill the program cleanly
+    # if there are ever multiple threads that should be killed
+
+    print "\nProgram is terminating."
+    #thread.interrupt_main() # kills main & all daemon threads
+    os._exit(status)
 
 def outputGrnd():
     # prints output for your groundstation to stdout
+
     print "Printing info for your ground observer:"
     print "long:", grnd.long
     print "lat:", grnd.lat
     print "elev:", grnd.elev
     print ""
-    return 0
+    return
+
+def outputSat():
+    # prints output for your groundstation to stdout
+
+    print iss.name
+    print "long:", iss.sublong
+    print "lat: ", iss.sublat
+    print "azimuth:", iss.az
+    print "altitude:", iss.alt
+    print "elevation:", iss.elevation
+    timeOfPass = grnd.next_pass(iss)[0]
+    print "next pass at", timeOfPass
+    print "" # blank line for formatting
+    return
 
 def updateTLE():
     # Updates the program's TLEs for satellites. It saves them on disc
@@ -50,9 +80,9 @@ def updateTLE():
     response = urllib2.urlopen(TLE_URL)
     #print "error"
     #killProgram(1)
-        
+
     html = response.read() # returns a string
-    
+
     # parse for the ISS (first 3 lines)
     endSub = html.find('TIANGONG')
     tleData = html[0:endSub]
@@ -67,23 +97,23 @@ def updateTLE():
     iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
 
     return
-    
-# initialize satellite info
-name = SAT_NAME
+
+#######################################
+## initialize satellite info
+#######################################
 
 # TLE == "Two line elements"
 # pull the TLE from disc
-f = open('tles.txt', 'r')
-tleString = f.read()
-f.close()
-
-lines = tleString.split('\n')
-
 try:
-    iss = ephem.readtle(name, lines[1], lines[2])
+    f = open('tles.txt', 'r')
+    tleString = f.read()
+    f.close()
+    lines = tleString.split('\n')
+    iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
 except:
-    # there was an error with the file format
+    # there was an error with the file format or the file did not exist
     updateTLE()
+
 
 grnd = ephem.Observer()
 grnd.long = -118.45 * ephem.degree
@@ -91,11 +121,6 @@ grnd.lat = 34.0665 * ephem.degree
 grnd.elev = 95
 
 outputGrnd()
-
-def killProgram(status):
-    print "\nProgram is terminating."
-    #thread.interrupt_main() # kills main & all daemon threads
-    os._exit(status)
 
 def updateVariables():
     try:
@@ -117,9 +142,9 @@ def updateTLE():
     response = urllib2.urlopen(TLE_URL)
     #print "error"
     #killProgram(1)
-        
+
     html = response.read() # returns a string
-    
+
     # parse for the ISS (first 3 lines)
     endSub = html.find('TIANGONG')
     tleData = html[0:endSub]
@@ -134,7 +159,7 @@ def updateTLE():
     iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
 
     return
-    
+
 
 def printFunc():
     try:
@@ -148,17 +173,10 @@ def printFunc():
             elif key == "u" or key == "up" or key == "update":
                 updateTLE()
                 print "Update is complete"
+            elif key == "g" or key == "grnd" or key == "ground":
+                outputGrnd()
             else:
-                # These values are computed live
-                print "ISS:"
-                print "long:", iss.sublong
-                print "lat: ", iss.sublat
-                print "azimuth:", iss.az
-                print "altitude:", iss.alt
-                print "elevation:", iss.elevation
-                timeOfPass = grnd.next_pass(iss)[0]
-                print "next pass at", timeOfPass
-                print "" # blank line for formatting
+                outputSat()
     except:
         exit(0)
 

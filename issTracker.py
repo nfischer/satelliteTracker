@@ -71,13 +71,19 @@ def outputGrnd():
 def outputSat():
     # prints output for your groundstation to stdout
 
-    print iss.name
-    print "long:", iss.sublong
-    print "lat: ", iss.sublat
-    print "azimuth:", iss.az
-    print "altitude:", iss.alt
-    print "elevation:", iss.elevation
+    s_name = iss.name
+    s_long = iss.sublong
+    s_lat = iss.sublat
+    s_az = iss.az
+    s_alt = iss.alt
+    s_elev = iss.elevation
     timeOfPass = grnd.next_pass(iss)[0]
+    print s_name
+    print "long:", COL_GREEN, s_long, COL_NORMAL
+    print "lat:", COL_GREEN, s_lat, COL_NORMAL
+    print "azimuth:", s_az
+    print "altitude:", s_alt
+    print "elevation:", s_elev
     print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL
     print "" # blank line for formatting
     return

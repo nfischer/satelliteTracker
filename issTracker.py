@@ -9,6 +9,16 @@
 REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
+# colors
+COL_NORMAL = '\033[0m'
+COL_GREY   = '\033[90m'
+COL_RED    = '\033[91m'
+COL_GREEN  = '\033[92m'
+COL_YELLOW = '\033[93m'
+COL_BLUE   = '\033[94m'
+COL_PURPLE = '\033[95m'
+COL_CYAN   = '\033[96m'
+COL_LT_YEL = '\033[97m'
 
 # global variables
 
@@ -68,7 +78,7 @@ def outputSat():
     print "altitude:", iss.alt
     print "elevation:", iss.elevation
     timeOfPass = grnd.next_pass(iss)[0]
-    print "next pass at", timeOfPass
+    print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL
     print "" # blank line for formatting
     return
 

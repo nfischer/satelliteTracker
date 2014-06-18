@@ -63,11 +63,14 @@ def killProgram(status):
 
 def outputGrnd():
     # prints output for your groundstation to stdout
+    g_long = grnd.long
+    g_lat = grnd.lat
+    g_elev = grnd.elev
 
     print "Printing info for your ground observer:"
-    print "long:", grnd.long
-    print "lat:", grnd.lat
-    print "elev:", grnd.elev
+    print "long:", g_long
+    print "lat:", g_lat
+    print "elev:", g_elev
     print ""
     return
 

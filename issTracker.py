@@ -9,6 +9,7 @@
 REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
+TLE_FILE = "tles.txt"
 # colors
 COL_NORMAL = '\033[0m'
 COL_GREY   = '\033[90m'
@@ -21,6 +22,8 @@ COL_CYAN   = '\033[96m'
 COL_WHITE  = '\033[97m'
 
 # global variables
+global grnd
+global iss
 
 #######################################
 ## Import modules
@@ -104,7 +107,7 @@ def updateTLE():
     tleData = html[0:endSub]
 
     # write the data to file
-    f = open('tles.txt', 'w')
+    f = open(TLE_FILE, 'w')
     f.write(tleData)
     f.close()
 
@@ -114,29 +117,6 @@ def updateTLE():
 
     return
 
-#######################################
-## initialize satellite info
-#######################################
-
-# TLE == "Two line elements"
-# pull the TLE from disc
-try:
-    f = open('tles.txt', 'r')
-    tleString = f.read()
-    f.close()
-    lines = tleString.split('\n')
-    iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
-except:
-    # there was an error with the file format or the file did not exist
-    updateTLE()
-
-
-grnd = ephem.Observer()
-grnd.long = -118.45 * ephem.degree
-grnd.lat = 34.0665 * ephem.degree
-grnd.elev = 95
-
-outputGrnd()
 
 def updateVariables():
     try:
@@ -166,7 +146,7 @@ def updateTLE():
     tleData = html[0:endSub]
 
     # write the data to file
-    f = open('tles.txt', 'w')
+    f = open(TLE_FILE, 'w')
     f.write(tleData)
     f.close()
 
@@ -199,6 +179,32 @@ def printFunc():
 
 
 def main():
+    #######################################
+    ## initialize satellite info
+    #######################################
+
+    # TLE == "Two line elements"
+    # pull the TLE from disc
+    try:
+        f = open(TLE_FILE, 'r')
+        tleString = f.read()
+        f.close()
+        lines = tleString.split('\n')
+        global iss
+        iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
+    except:
+        # there was an error with the file format or the file did not exist
+        updateTLE()
+
+
+    global grnd
+    grnd = ephem.Observer()
+    grnd.long = -118.45 * ephem.degree
+    grnd.lat = 34.0665 * ephem.degree
+    grnd.elev = 95
+
+    outputGrnd()
+
     # use threading module to spawn new threads
     my_threads = list()
     my_threads.append(threading.Thread(target=updateVariables) )

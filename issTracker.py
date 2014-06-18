@@ -176,20 +176,45 @@ def updateTLE():
 
     return
 
+def matches(a, b):
+    # Takes two strings and returns True if one is a substring of the other
+    # and begins at the first character of the string.
 
-def printFunc():
+    lenA = len(a)
+    lenB = len(b)
+
+    if lenA == 0 or lenB == 0:
+        # empty string should return false always
+        return False
+
+    if lenA > lenB:
+        # swap them so that a is shorter
+        tmp = b
+        b = a
+        a = tmp
+
+    # assume that lenA <= lenB
+    b = b[0:lenA]
+
+    # if a & b are a match, then return true
+    return a == b
+
+
+
+
+def prompt():
     try:
         while 1:
             key = raw_input("Press enter to see values, q to quit: ")
-            if key == "q" or key == "Q" or key == ";q":
+            if matches(key,"quit") or key == "Q" or key == ";q":
                 killProgram(0)
                 sys.exit(0) # redundant, but safe
-            elif key == "c" or key == "clear" or key == "cls":
+            elif matches(key,"clear") or key == "cls":
                 os.system('clear');
-            elif key == "u" or key == "up" or key == "update":
+            elif matches(key,"update"):
                 updateTLE()
                 print "Update is complete"
-            elif key == "g" or key == "grnd" or key == "ground":
+            elif matches(key,"grnd") or key == "ground":
                 outputGrnd()
             else:
                 outputSat()
@@ -202,7 +227,7 @@ def main():
     # use threading module to spawn new threads
     my_threads = list()
     my_threads.append(threading.Thread(target=updateVariables) )
-    my_threads.append(threading.Thread(target=printFunc) )
+    my_threads.append(threading.Thread(target=prompt) )
     my_threads[0].daemon = True # run this thread in the background
     my_threads[1].daemon = False
     my_threads[0].start()

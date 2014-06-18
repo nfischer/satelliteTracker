@@ -88,6 +88,11 @@ def outputSat():
     print "" # blank line for formatting
     return
 
+def outputNow():
+    # prints the current time according to pyephem
+    print "Current time is", COL_YELLOW, ephem.now(), COL_NORMAL
+    return
+
 def updateTLE():
     # Updates the program's TLEs for satellites. It saves them on disc
     # Looks in the current directory for the TLE file
@@ -216,6 +221,8 @@ def prompt():
                 print "Update is complete"
             elif matches(key,"grnd") or key == "ground":
                 outputGrnd()
+            elif matches(key,"now"):
+                outputNow()
             else:
                 outputSat()
     except:

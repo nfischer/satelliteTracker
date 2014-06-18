@@ -18,7 +18,7 @@ COL_YELLOW = '\033[93m'
 COL_BLUE   = '\033[94m'
 COL_PURPLE = '\033[95m'
 COL_CYAN   = '\033[96m'
-COL_LT_YEL = '\033[97m'
+COL_WHITE  = '\033[97m'
 
 # global variables
 

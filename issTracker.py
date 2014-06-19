@@ -129,7 +129,7 @@ def installProgram():
         print "Not installing. Terminating issTracker."
         exit(1)
 
-    print "Installing issTracker"
+    print "\nInstalling issTracker\n"
 
     # make the directory
     dirExistsCmd = "test -d " + DATA_DIR
@@ -140,7 +140,6 @@ def installProgram():
 
     if os.system("test -f "+GRND_FILE) != 0:
         updateGrnd()
-
 
     return
 
@@ -223,6 +222,7 @@ def updateTLE():
 
     # reload TLEs in satellite object
     lines = tleData.split('\n')
+    global iss
     iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
 
     return
@@ -235,36 +235,10 @@ def updateVariables():
             grnd.date = now
             iss.compute(grnd) # this computes for right now relative to grnd
             #iss.compute() # this computes for right now
-            #print iss.sublong, iss.sublat
             time.sleep(REFRESH_TIME)
     except:
         exit(0)
 
-def updateTLE():
-    # Updates the program's TLEs for satellites. It saves them on disc
-    # Looks in the current directory for the TLE file
-
-    # fetch the webpage first
-    response = urllib2.urlopen(TLE_URL)
-    #print "error"
-    #killProgram(1)
-
-    html = response.read() # returns a string
-
-    # parse for the ISS (first 3 lines)
-    endSub = html.find('TIANGONG')
-    tleData = html[0:endSub]
-
-    # write the data to file
-    f = open(TLE_FILE, 'w')
-    f.write(tleData)
-    f.close()
-
-    # reload TLEs in satellite object
-    lines = tleData.split('\n')
-    iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
-
-    return
 
 def matches(a, b):
     # Takes two strings and returns True if one is a substring of the other

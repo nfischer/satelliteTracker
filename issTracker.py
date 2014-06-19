@@ -1,38 +1,15 @@
 #!/usr/bin/python
 
-# My test at adding a satellite
-# Based on: http://programmingforresearch.wordpress.com/2012/10/30/using-pyephem-to-get-the-ground-coordinates-of-a-satellite/
-
-# I want this to be the basic framework for the eventual commander
-
-# global "constants"
-REFRESH_TIME = 1 # in seconds
-SAT_NAME = "ISS"
-TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
-TLE_FILE = "tles.txt"
-# colors
-COL_NORMAL = '\033[0m'
-COL_GREY   = '\033[90m'
-COL_RED    = '\033[91m'
-COL_GREEN  = '\033[92m'
-COL_YELLOW = '\033[93m'
-COL_BLUE   = '\033[94m'
-COL_PURPLE = '\033[95m'
-COL_CYAN   = '\033[96m'
-COL_WHITE  = '\033[97m'
-
-# global variables
-global grnd
-global iss
 
 #######################################
 ## Import modules
 #######################################
 
 import sys
+import subprocess
 import os
+import getpass
 import urllib2
-
 import time
 #import math
 import thread
@@ -49,6 +26,28 @@ except:
 
     exit(1)
 
+# global "constants"
+REFRESH_TIME = 1 # in seconds
+SAT_NAME = "ISS"
+TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
+DATA_DIR = "/home/" + getpass.getuser() + "/.satTracker"
+TLE_FILE = "tles.txt"
+GRND_FILE = "grnd.txt"
+# colors
+COL_NORMAL = '\033[0m'
+COL_GREY   = '\033[90m'
+COL_RED    = '\033[91m'
+COL_GREEN  = '\033[92m'
+COL_YELLOW = '\033[93m'
+COL_BLUE   = '\033[94m'
+COL_PURPLE = '\033[95m'
+COL_CYAN   = '\033[96m'
+COL_WHITE  = '\033[97m'
+
+# global variables
+global grnd
+global iss
+
 #######################################
 ## Functions
 #######################################
@@ -60,6 +59,105 @@ def killProgram(status):
     print "\nProgram is terminating."
     #thread.interrupt_main() # kills main & all daemon threads
     os._exit(status)
+
+def installProgram():
+    # creates the directory and asks for inputted ground observer info
+
+    installMsg = """
+    Would you like to allow issTracker to install on your computer?
+
+    It will create on your computer:
+
+    - a file to save TLE info for your satellites
+    - a file to save longitude and latitude for your ground station
+    - a directory within your home directory where these files will be saved
+
+    """
+
+    print installMsg
+    decision = raw_input("Do you want to install issTracker? (y/n): ")
+    if decision != "y":
+        print "Not installing. Terminating issTracker."
+        exit(1)
+
+    print "Installing issTracker"
+
+    # make the directory
+    dirExistsCmd = "test -d " + DATA_DIR
+    if os.system(dirExistsCmd) != 0:
+        print "no dir installed"
+        if os.system("mkdir "+DATA_DIR) != 0:
+            print "There was an error installing the program."
+            exit(1)
+
+    print "Installed your directory, man"
+    if os.system("test -f "+GRND_FILE) != 0:
+        print "Please enter information for your ground observer:"
+        print "Leave a line blank to use the default value (for O.C.)."
+        u_long = raw_input("Longitude (degrees): ")
+        u_lat  = raw_input("Latitude (degrees): ")
+        u_elev = raw_input("Elevation (m): ")
+
+        defLong = -118.45
+        defLat  = 34.0665
+        defElev = 95.0
+
+        # set values
+        try:
+            u_long = float(u_long)
+        except:
+            u_long = defLong
+
+        try:
+            u_lat = float(u_lat)
+        except:
+            u_lat = defLat
+
+        try:
+            u_elev = float(u_elev)
+        except:
+            u_elev = defElev
+
+
+
+        # check validity of values & their types
+        if u_elev < 0:
+            u_elev = defElev
+
+
+        # convert to radians
+        u_long = u_long * ephem.degree
+        u_lat = u_lat * ephem.degree
+
+        # write values to file
+        values = [ str(u_long), str(u_lat), str(u_elev), ""]
+        grndString = '\n'.join(values)
+
+        with open(GRND_FILE, 'w') as f:
+            f.write(grndString)
+
+
+    return
+
+
+
+def isInstalled():
+    # returns True if issTracker.py appears to be installed correctly
+
+    dirExistsCmd = "test -d " + DATA_DIR
+    if os.system(dirExistsCmd) != 0:
+        print "It ain't installed"
+        return False
+
+
+
+
+
+
+
+    return True
+
+
 
 def outputGrnd():
     # prints output for your groundstation to stdout
@@ -214,11 +312,12 @@ def prompt():
 
 
 def main():
-    #######################################
-    ## initialize satellite info
-    #######################################
+    print DATA_DIR
+    ## Check if installed
+    if not isInstalled():
+        installProgram()
 
-    # TLE == "Two line elements"
+    ## initialize satellite info
     # pull the TLE from disc
     try:
         f = open(TLE_FILE, 'r')

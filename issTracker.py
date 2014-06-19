@@ -68,8 +68,8 @@ def outputGrnd():
     g_elev = grnd.elev
 
     print "Printing info for your ground observer:"
-    print "long:", g_long
-    print "lat:", g_lat
+    print "long:", COL_BLUE, g_long, COL_NORMAL
+    print "lat: ", COL_BLUE, g_lat,  COL_NORMAL
     print "elev:", g_elev
     print ""
     return
@@ -86,7 +86,7 @@ def outputSat():
     timeOfPass = grnd.next_pass(iss)[0]
     print s_name
     print "long:", COL_GREEN, s_long, COL_NORMAL
-    print "lat:", COL_GREEN, s_lat, COL_NORMAL
+    print "lat: ", COL_GREEN, s_lat,  COL_NORMAL
     print "azimuth:", s_az
     print "altitude:", s_alt
     print "elevation:", s_elev

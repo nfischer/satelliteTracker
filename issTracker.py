@@ -30,9 +30,9 @@ except:
 REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
-DATA_DIR = "/home/" + getpass.getuser() + "/.satTracker"
-TLE_FILE = "tles.txt"
-GRND_FILE = "grnd.txt"
+DATA_DIR = "/home/" + getpass.getuser() + "/.satTracker/"
+TLE_FILE = DATA_DIR+"tles.txt"
+GRND_FILE = DATA_DIR+"grnd.txt"
 # colors
 COL_NORMAL = '\033[0m'
 COL_GREY   = '\033[90m'
@@ -60,6 +60,55 @@ def killProgram(status):
     #thread.interrupt_main() # kills main & all daemon threads
     os._exit(status)
 
+def updateGrnd():
+
+    print "Please enter information for your ground observer:"
+    print "Leave a line blank to use the default value (for O.C.)."
+    u_long = raw_input("Longitude (degrees): ")
+    u_lat  = raw_input("Latitude (degrees): ")
+    u_elev = raw_input("Elevation (m): ")
+
+    defLong = -118.45
+    defLat  = 34.0665
+    defElev = 95.0
+
+    # set values
+    try:
+        u_long = float(u_long)
+    except:
+        u_long = defLong
+
+    try:
+        u_lat = float(u_lat)
+    except:
+        u_lat = defLat
+
+    try:
+        u_elev = float(u_elev)
+    except:
+        u_elev = defElev
+
+
+
+    # check validity of values & their types
+    if u_elev < 0:
+        u_elev = defElev
+
+
+    # convert to radians
+    u_long = u_long * ephem.degree
+    u_lat = u_lat * ephem.degree
+
+    # write values to file
+    values = [ str(u_long), str(u_lat), str(u_elev), ""]
+    grndString = '\n'.join(values)
+
+    with open(GRND_FILE, 'w') as f:
+        f.write(grndString)
+
+    return
+
+
 def installProgram():
     # creates the directory and asks for inputted ground observer info
 
@@ -85,56 +134,12 @@ def installProgram():
     # make the directory
     dirExistsCmd = "test -d " + DATA_DIR
     if os.system(dirExistsCmd) != 0:
-        print "no dir installed"
         if os.system("mkdir "+DATA_DIR) != 0:
             print "There was an error installing the program."
             exit(1)
 
-    print "Installed your directory, man"
     if os.system("test -f "+GRND_FILE) != 0:
-        print "Please enter information for your ground observer:"
-        print "Leave a line blank to use the default value (for O.C.)."
-        u_long = raw_input("Longitude (degrees): ")
-        u_lat  = raw_input("Latitude (degrees): ")
-        u_elev = raw_input("Elevation (m): ")
-
-        defLong = -118.45
-        defLat  = 34.0665
-        defElev = 95.0
-
-        # set values
-        try:
-            u_long = float(u_long)
-        except:
-            u_long = defLong
-
-        try:
-            u_lat = float(u_lat)
-        except:
-            u_lat = defLat
-
-        try:
-            u_elev = float(u_elev)
-        except:
-            u_elev = defElev
-
-
-
-        # check validity of values & their types
-        if u_elev < 0:
-            u_elev = defElev
-
-
-        # convert to radians
-        u_long = u_long * ephem.degree
-        u_lat = u_lat * ephem.degree
-
-        # write values to file
-        values = [ str(u_long), str(u_lat), str(u_elev), ""]
-        grndString = '\n'.join(values)
-
-        with open(GRND_FILE, 'w') as f:
-            f.write(grndString)
+        updateGrnd()
 
 
     return
@@ -146,13 +151,12 @@ def isInstalled():
 
     dirExistsCmd = "test -d " + DATA_DIR
     if os.system(dirExistsCmd) != 0:
-        print "It ain't installed"
         return False
 
 
-
-
-
+    grndExistsCmd = "test -f " + GRND_FILE
+    if os.system(grndExistsCmd) != 0:
+        return False
 
 
     return True
@@ -312,7 +316,6 @@ def prompt():
 
 
 def main():
-    print DATA_DIR
     ## Check if installed
     if not isInstalled():
         installProgram()
@@ -331,11 +334,21 @@ def main():
         updateTLE()
 
 
-    global grnd
-    grnd = ephem.Observer()
-    grnd.long = -118.45 * ephem.degree
-    grnd.lat = 34.0665 * ephem.degree
-    grnd.elev = 95
+    ## set up ground station information
+    try:
+        f = open(GRND_FILE, 'r')
+        grndString = f.read()
+        f.close()
+        lines = grndString.split('\n')
+        global grnd
+        grnd = ephem.Observer()
+        grnd.long = float(lines[0])
+        grnd.lat =  float(lines[1])
+        grnd.elev = float(lines[2])
+    except:
+        # there was an error with the file format or the file did not exist
+        print "error with grnd file"
+        killProgram(1)
 
     outputGrnd()
 

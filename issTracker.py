@@ -60,6 +60,36 @@ def killProgram(status):
     #thread.interrupt_main() # kills main & all daemon threads
     os._exit(status)
 
+def setGrnd():
+    # This sets the grnd global variable
+    try:
+        f = open(GRND_FILE, 'r')
+        grndString = f.read()
+        f.close()
+        lines = grndString.split('\n')
+        global grnd
+        grnd = ephem.Observer()
+        g_long = float(lines[0])
+        g_lat =  float(lines[1])
+        g_elev = float(lines[2])
+        
+        # Check for invalid values
+        deg180 = 180 * ephem.degree
+        deg90 = 90 * ephem.degree
+        if g_long > deg180 or g_long < -1 * deg180:
+            return 1
+        if g_lat > deg90 or g_lat < -1 * deg90:
+            return 1
+        if g_elev < 0 or g_elev > 8848: # height of Mt. Everest
+            return 1
+        grnd.long = g_long
+        grnd.lat =  g_lat
+        grnd.elev = g_elev
+        return 0
+    except:
+        # Error, so we need to rewrite grnd file
+        return 2
+
 def updateGrnd():
 
     print "Please enter information for your ground observer:"
@@ -172,7 +202,6 @@ def outputGrnd():
     print "long:", COL_BLUE, g_long, COL_NORMAL
     print "lat: ", COL_BLUE, g_lat,  COL_NORMAL
     print "elev:", g_elev
-    print ""
     return
 
 def outputSat():
@@ -192,7 +221,6 @@ def outputSat():
     print "altitude:", s_alt
     print "elevation:", s_elev
     print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL
-    print "" # blank line for formatting
     return
 
 def outputNow():
@@ -264,15 +292,35 @@ def matches(a, b):
     return a == b
 
 
+def usage():
+    HELP_MSG="""
+To enter a command to issTracker, enter one or more characters at the start
+of the desired command option.
+
+issTracker command prompt options:
+
+quit                             This quits the application cleanly
+help                             This displays this help message
+clear                            Clear the screen
+update                           Update the ISS TLE automatically
+grnd, ground                     Display ground station information
+now                              Display the current time in UTC
+change                           Enter new ground station information
+print (or simply hitting enter)  Display ISS location and time of next pass
+"""
+    print HELP_MSG
+    return
 
 
 def prompt():
     try:
         while 1:
-            key = raw_input("Press enter to see values, q to quit: ")
+            key = raw_input("\nPress enter to see values, q to quit: ")
             if matches(key,"quit") or key == "Q" or key == ";q":
                 killProgram(0)
                 sys.exit(0) # redundant, but safe
+            elif matches(key,"help") or key == "--help":
+                usage()
             elif matches(key,"clear") or key == "cls":
                 os.system('clear');
             elif matches(key,"update"):
@@ -282,6 +330,15 @@ def prompt():
                 outputGrnd()
             elif matches(key,"now"):
                 outputNow()
+            elif matches(key,"change"):
+                updateGrnd()
+                ret = setGrnd()
+                if ret == 0:
+                    print "Your update of ground station info is complete."
+                    outputGrnd()
+                else:
+                    print "It appears there was an error with your grnd values."
+                    killProgram(1)
             else:
                 outputSat()
     except:
@@ -309,22 +366,16 @@ def main():
 
 
     ## set up ground station information
-    try:
-        f = open(GRND_FILE, 'r')
-        grndString = f.read()
-        f.close()
-        lines = grndString.split('\n')
-        global grnd
-        grnd = ephem.Observer()
-        grnd.long = float(lines[0])
-        grnd.lat =  float(lines[1])
-        grnd.elev = float(lines[2])
-    except:
-        # there was an error with the file format or the file did not exist
-        print "error with grnd file"
-        killProgram(1)
+    while True:
+        ret = setGrnd()
+        if ret == 0:
+            break
+        else:
+            # there was an error with the file format or the file did not exist
+            print COL_RED, "Error with grnd file.", COL_NORMAL, "Please update it with valid information."
+            updateGrnd()
 
-    outputGrnd()
+    #outputGrnd()
 
     # use threading module to spawn new threads
     my_threads = list()

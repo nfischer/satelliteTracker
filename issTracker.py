@@ -316,7 +316,7 @@ def prompt():
     try:
         while 1:
             key = raw_input("\nPress enter to see values, q to quit: ")
-            if matches(key,"quit") or key == "Q" or key == ";q":
+            if matches(key,"quit") or key == "Q" or key == ";q" or key == "exit":
                 killProgram(0)
                 sys.exit(0) # redundant, but safe
             elif matches(key,"help") or key == "--help":

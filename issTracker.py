@@ -30,9 +30,14 @@ except:
 REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
-DATA_DIR = "/home/" + getpass.getuser() + "/.satTracker/"
-TLE_FILE = DATA_DIR+"tles.txt"
-GRND_FILE = DATA_DIR+"grnd.txt"
+
+def getHomeDir():
+   return os.path.expanduser("~")
+
+DATA_DIR  = os.path.join(getHomeDir(), ".satTracker")
+TLE_FILE  = os.path.join(DATA_DIR, "tles.txt")
+GRND_FILE = os.path.join(DATA_DIR, "grnd.txt")
+
 # colors
 COL_NORMAL = '\033[0m'
 COL_GREY   = '\033[90m'

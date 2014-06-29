@@ -32,8 +32,7 @@ SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
 
 def getHomeDir():
-   from os.path import expanduser
-   return expanduser("~")
+   return os.path.expanduser("~")
 
 DATA_DIR  = os.path.join(getHomeDir(), ".satTracker")
 TLE_FILE  = os.path.join(DATA_DIR, "tles.txt")

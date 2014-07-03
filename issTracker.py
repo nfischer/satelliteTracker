@@ -15,16 +15,64 @@ import time
 import thread
 import threading
 
+
+def handleDependencies():
+
+    returner = 0
+
+    linInstall = """
+    sudo apt-get install python-pip
+    sudo apt-get install python-dev
+    sudo pip install pyephem
+    """
+    macInstall = """
+    sudo easy_install pip
+    sudo pip install pyephem
+    """
+
+    instCmds = linInstall # default
+    print "You don't have pyephem installed!"
+    print "Install it like so:"
+    opSys = sys.platform
+    if opSys == "linux" or opSys == "linux2":
+        print linInstall
+        instCmds = linInstall
+    elif opSys == "darwin":
+        print macInstall
+        instCmds = macInstall
+    else:
+        print "Your system is not currently supported, so it may not work."
+        print "Try:\nsudo pip install pyephem"
+        return returner
+
+    resp = raw_input("Would you like this program to install these dependencies for you? (y/n) ")
+    if resp == "y":
+        if os.system("which pip >/dev/null 2>&1") == 0:
+            # pip is already installed
+            cmd = "sudo pip install pyephem"
+            print cmd
+            ret = os.system(cmd)
+            if ret != 0:
+                print "There was some failure with the command"
+                returner = 1
+
+        else:
+            for cmd in instCmds.split('\n'):
+                print cmd
+                ret = os.system(cmd)
+                if ret != 0:
+                    print "There was some failure with the command"
+                    returner = 1
+
+    return returner
+
+
 try:
     import ephem
 except:
-    print "You don't have pyephem installed!"
-    print "Install it like so:\n"
-    print "$ sudo apt-get install python-pip"
-    print "$ sudo apt-get install python-dev"
-    print "$ sudo pip install pyephem"
+    ret = handleDependencies()
 
-    exit(1)
+    exit(ret)
 
 # global "constants"
 REFRESH_TIME = 1 # in seconds

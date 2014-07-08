@@ -267,18 +267,20 @@ def outputSat():
     s_alt = iss.alt
     s_elev = iss.elevation
     timeOfPass = ephem.localtime(grnd.next_pass(iss)[0])
+    setTime = ephem.localtime(grnd.next_pass(iss)[2])
     print s_name
     print "long:", COL_GREEN, s_long, COL_NORMAL
     print "lat: ", COL_GREEN, s_lat,  COL_NORMAL
     print "azimuth:", s_az
     print "altitude:", s_alt
     print "elevation:", s_elev
-    print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL, "local time"
+    print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL + "local time"
+    print "set time:   " + COL_YELLOW, setTime, COL_NORMAL
     return
 
 def outputNow():
     # prints the current time according to pyephem
-    print "Current time is", COL_YELLOW, ephem.now(), COL_NORMAL, "UTC"
+    print "Current time is", COL_YELLOW, ephem.now(), COL_NORMAL + "UTC"
     return
 
 def updateTLE():

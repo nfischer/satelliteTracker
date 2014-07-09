@@ -11,7 +11,6 @@ import os
 import getpass
 import urllib2
 import time
-#import math
 import thread
 import threading
 
@@ -194,8 +193,9 @@ def updateGrnd():
     return
 
 
+## Installs user data on the system
+## Creates the directory and asks for input for ground observer info
 def installProgram():
-    # creates the directory and asks for inputted ground observer info
 
     installMsg = """
     Would you like to allow issTracker to install on your computer?
@@ -230,8 +230,8 @@ def installProgram():
 
 
 
+## returns True if issTracker.py appears to be installed correctly
 def isInstalled():
-    # returns True if issTracker.py appears to be installed correctly
 
     dirExistsCmd = "test -d " + DATA_DIR
     if os.system(dirExistsCmd) != 0:
@@ -294,8 +294,8 @@ def handleTime(argv):
     return
 
 
+## Prints output for user's groundstation
 def outputGrnd():
-    # prints output for your groundstation to stdout
     g_long = grnd.long
     g_lat = grnd.lat
     g_elev = grnd.elev
@@ -306,8 +306,8 @@ def outputGrnd():
     print "elev:", g_elev
     return
 
+## Prints output the satellite
 def outputSat():
-    # prints output for your groundstation to stdout
 
     s_name = iss.name
     s_long = iss.sublong
@@ -328,8 +328,10 @@ def outputSat():
     print "end time:   " + COL_YELLOW, setTime, COL_NORMAL
     return
 
+## By default, it prints the current time in UTC and local time
+## This will print the time being tracked by the program if the user has
+## adjusted the time forward or backward
 def outputNow():
-    # prints the current time according to pyephem
     now = ephem.now().tuple()
     time = tuple(sum(x) for x in zip(now,displacement) )
     e_time = ephem.Date(time)
@@ -337,9 +339,9 @@ def outputNow():
     print "Current time is", COL_YELLOW, ephem.localtime(e_time), COL_NORMAL+ "local time"
     return
 
+## Updates the program's TLEs for satellites. It saves them on disc
+## Looks in the current directory for the TLE file
 def updateTLE():
-    # Updates the program's TLEs for satellites. It saves them on disc
-    # Looks in the current directory for the TLE file
 
     # fetch the webpage first
     response = urllib2.urlopen(TLE_URL)
@@ -363,6 +365,7 @@ def updateTLE():
     return
 
 
+## This is the function that updates the satellite object's position info
 def updateSat():
     try:
         while 1:
@@ -374,9 +377,9 @@ def updateSat():
         exit(0)
 
 
+## Takes two strings and returns True if one is a substring of the other
+## and begins at the first character of the string.
 def matches(a, b):
-    # Takes two strings and returns True if one is a substring of the other
-    # and begins at the first character of the string.
 
     lenA = len(a)
     lenB = len(b)
@@ -398,6 +401,7 @@ def matches(a, b):
     return a == b
 
 
+## Outputs help info when the user inputs "help" at the command line
 def usage():
     HELP_MSG="""
 To enter a command to issTracker, enter one or more characters at the start
@@ -421,6 +425,7 @@ print (or simply hitting enter)  Display ISS location and time of next pass
     return
 
 
+## Creates a command line within the program
 def prompt():
     try:
         while 1:
@@ -465,11 +470,11 @@ def prompt():
 
 
 def main():
-    ## Check if installed
+    # Check if installed
     if not isInstalled():
         installProgram()
 
-    ## initialize satellite info
+    # initialize satellite info
     # pull the TLE from disc
     try:
         f = open(TLE_FILE, 'r')

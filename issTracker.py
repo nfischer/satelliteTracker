@@ -246,6 +246,53 @@ def isInstalled():
     return True
 
 
+## Adjusts time forward, backward, or resets it to current time
+def handleTime(argv):
+    # parse further
+    argc = len(argv)
+    p = "" # first (primary)
+    s = "" # second
+    t = "" # third
+    adjuster = ZERO_TUPLE
+    if argc > 1:
+        # check for single-argument commands
+        p = argv[1]
+        if matches(p,"reset"):
+            print "Time is reset to now"
+            global displacement
+            displacement = ZERO_TUPLE
+            return
+    if argc > 2:
+        s = argv[2]
+        try:
+            s = int(s)
+        except:
+            return
+
+        adj_list = list(adjuster)
+        if matches(p,"Year"):
+            adj_list[0] = s
+        if matches(p,"Month"):
+            adj_list[1] = s
+        if matches(p,"Day"):
+            adj_list[2] = s
+        if matches(p,"hour"):
+            adj_list[3] = s
+        if matches(p,"minute"):
+            adj_list[4] = s
+        if matches(p,"second"):
+            adj_list[5] = s
+
+        adjuster = tuple(adj_list)
+
+    # now adjust displacement
+    adjuster = tuple(sum(k) for k in zip(displacement,adjuster) )
+
+    #global displacement 
+    #displacement = ZERO_TUPLE
+    displacement = adjuster
+    return
+
 
 def outputGrnd():
     # prints output for your groundstation to stdout
@@ -283,7 +330,11 @@ def outputSat():
 
 def outputNow():
     # prints the current time according to pyephem
-    print "Current time is", COL_YELLOW, ephem.now(), COL_NORMAL + "UTC"
+    now = ephem.now().tuple()
+    time = tuple(sum(x) for x in zip(now,displacement) )
+    e_time = ephem.Date(time)
+    print "Current time is", COL_YELLOW, e_time, COL_NORMAL + "UTC"
+    print "Current time is", COL_YELLOW, ephem.localtime(e_time), COL_NORMAL+ "local time"
     return
 
 def updateTLE():
@@ -401,12 +452,7 @@ def prompt():
                     print "It appears there was an error with your grnd values."
                     killProgram(1)
             elif matches(key,"time"):
-                # parse further
-                if len(key_list) > 1:
-                    if matches(key_list[1],"reset"):
-                        global displacement
-                        displacement = ZERO_TUPLE
-                        print "Time is reset to now"
+                handleTime(key_list)
 
             else:
                 outputSat()

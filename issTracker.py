@@ -78,6 +78,7 @@ except:
 REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
+ZERO_TUPLE = (0,0,0,0,0,0)
 
 def getHomeDir():
    return os.path.expanduser("~")
@@ -100,6 +101,7 @@ COL_WHITE  = '\033[97m'
 # global variables
 global grnd
 global iss
+global displacement
 
 #######################################
 ## Functions
@@ -266,8 +268,9 @@ def outputSat():
     s_az = iss.az
     s_alt = iss.alt
     s_elev = iss.elevation
-    timeOfPass = ephem.localtime(grnd.next_pass(iss)[0])
-    setTime = ephem.localtime(grnd.next_pass(iss)[2])
+    pass_tuple = grnd.next_pass(iss)
+    timeOfPass = ephem.localtime(pass_tuple[0])
+    setTime = ephem.localtime(pass_tuple[2])
     print s_name
     print "long:", COL_GREEN, s_long, COL_NORMAL
     print "lat: ", COL_GREEN, s_lat,  COL_NORMAL
@@ -275,7 +278,7 @@ def outputSat():
     print "altitude:", s_alt
     print "elevation:", s_elev
     print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL + "local time"
-    print "set time:   " + COL_YELLOW, setTime, COL_NORMAL
+    print "end time:   " + COL_YELLOW, setTime, COL_NORMAL
     return
 
 def outputNow():
@@ -289,8 +292,6 @@ def updateTLE():
 
     # fetch the webpage first
     response = urllib2.urlopen(TLE_URL)
-    #print "error"
-    #killProgram(1)
 
     html = response.read() # returns a string
 
@@ -314,10 +315,9 @@ def updateTLE():
 def updateVariables():
     try:
         while 1:
-            now = ephem.now()
-            grnd.date = now
-            iss.compute(grnd) # this computes for right now relative to grnd
-            #iss.compute() # this computes for right now
+            now = ephem.now().tuple()
+            grnd.date = tuple(sum(k) for k in zip(now,displacement) )
+            iss.compute(grnd)
             time.sleep(REFRESH_TIME)
     except:
         exit(0)
@@ -370,7 +370,13 @@ print (or simply hitting enter)  Display ISS location and time of next pass
 def prompt():
     try:
         while 1:
-            key = raw_input("\nPress enter to see values, q to quit: ")
+            text = raw_input("\nPress enter to see values, q to quit: ")
+            key_list = []
+            key = ""
+            if text != "":
+                key_list = text.split()
+                key = key_list[0]
+
             if matches(key,"quit") or key == "Q" or key == ";q" or key == "exit":
                 killProgram(0)
                 sys.exit(0) # redundant, but safe
@@ -394,6 +400,14 @@ def prompt():
                 else:
                     print "It appears there was an error with your grnd values."
                     killProgram(1)
+            elif matches(key,"time"):
+                # parse further
+                if len(key_list) > 1:
+                    if matches(key_list[1],"reset"):
+                        global displacement
+                        displacement = ZERO_TUPLE
+                        print "Time is reset to now"
+
             else:
                 outputSat()
     except:
@@ -429,6 +443,9 @@ def main():
             # there was an error with the file format or the file did not exist
             print COL_RED, "Error with grnd file.", COL_NORMAL, "Please update it with valid information."
             updateGrnd()
+
+    global displacement
+    displacement = ZERO_TUPLE
 
     #outputGrnd()
 

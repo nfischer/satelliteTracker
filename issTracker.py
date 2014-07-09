@@ -363,7 +363,7 @@ def updateTLE():
     return
 
 
-def updateVariables():
+def updateSat():
     try:
         while 1:
             now = ephem.now().tuple()
@@ -412,6 +412,9 @@ update                           Update the ISS TLE automatically
 grnd, ground                     Display ground station information
 now                              Display the current time in UTC
 change                           Enter new ground station information
+time [YMDhms] <int>              Increase or decrease time by <int> Years,
+                                 Months, Days, hours, minutes, seconds
+time reset                       Reset time to current time
 print (or simply hitting enter)  Display ISS location and time of next pass
 """
     print HELP_MSG
@@ -497,7 +500,7 @@ def main():
 
     # use threading module to spawn new threads
     my_threads = list()
-    my_threads.append(threading.Thread(target=updateVariables) )
+    my_threads.append(threading.Thread(target=updateSat) )
     my_threads.append(threading.Thread(target=prompt) )
     my_threads[0].daemon = True # run this thread in the background
     my_threads[1].daemon = False

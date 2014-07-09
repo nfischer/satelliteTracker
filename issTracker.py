@@ -126,7 +126,7 @@ def setGrnd():
         g_long = float(lines[0])
         g_lat =  float(lines[1])
         g_elev = float(lines[2])
-        
+
         # Check for invalid values
         deg180 = 180 * ephem.degree
         deg90 = 90 * ephem.degree
@@ -288,7 +288,7 @@ def handleTime(argv):
     # now adjust displacement
     adjuster = tuple(sum(k) for k in zip(displacement,adjuster) )
 
-    #global displacement 
+    #global displacement
     #displacement = ZERO_TUPLE
     displacement = adjuster
     return

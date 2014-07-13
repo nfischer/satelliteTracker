@@ -6,12 +6,9 @@
 #######################################
 
 import sys
-import subprocess
 import os
-import getpass
 import urllib2
 import time
-import thread
 import threading
 
 

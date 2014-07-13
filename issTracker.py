@@ -98,6 +98,7 @@ COL_WHITE  = '\033[97m'
 global grnd
 global iss
 global displacement
+global is_frozen
 
 #######################################
 ## Functions
@@ -258,6 +259,16 @@ def handleTime(argv):
             print "Time is reset to now"
             global displacement
             displacement = ZERO_TUPLE
+            global is_frozen
+            is_frozen = False
+            return
+        if matches(p,"freeze") or matches(p,"frozen"):
+            print "Time is now frozen. Use 'unfreeze' to undo this."
+            is_frozen = True
+            return
+        if matches(p,"unfreeze"):
+            print "Time is now unfrozen."
+            is_frozen = False
             return
     if argc > 2:
         s = argv[2]
@@ -366,8 +377,10 @@ def updateTLE():
 def updateSat():
     try:
         while 1:
-            now = ephem.now().tuple()
-            grnd.date = tuple(sum(k) for k in zip(now,displacement) )
+            if is_frozen == False:
+                now = ephem.now().tuple()
+                grnd.date = tuple(sum(k) for k in zip(now,displacement) )
+
             iss.compute(grnd)
             time.sleep(REFRESH_TIME)
     except:
@@ -497,6 +510,8 @@ def main():
 
     global displacement
     displacement = ZERO_TUPLE
+    global is_frozen
+    is_frozen = False
 
     #outputGrnd()
 

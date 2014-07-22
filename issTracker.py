@@ -101,6 +101,7 @@ global grnd
 global iss
 global displacement
 global is_frozen
+global p_time
 
 #######################################
 ## Functions
@@ -280,17 +281,17 @@ def handleTime(argv):
             return
 
         adj_list = list(adjuster)
-        if matches(p,"Year"):
+        if matches(p,"Year") or matches(p,"year"):
             adj_list[0] = s
         if matches(p,"Month"):
             adj_list[1] = s
-        if matches(p,"Day"):
+        if matches(p,"Day") or matches(p,"day"):
             adj_list[2] = s
-        if matches(p,"hour"):
+        if matches(p,"hour") or matches(p,"Hour"):
             adj_list[3] = s
         if matches(p,"minute"):
             adj_list[4] = s
-        if matches(p,"second"):
+        if matches(p,"second") or matches(p,"Second"):
             adj_list[5] = s
 
         adjuster = tuple(adj_list)
@@ -298,8 +299,6 @@ def handleTime(argv):
     # now adjust displacement
     adjuster = tuple(sum(k) for k in zip(displacement,adjuster) )
 
-    #global displacement
-    #displacement = ZERO_TUPLE
     displacement = adjuster
     return
 
@@ -342,9 +341,10 @@ def outputSat():
 ## This will print the time being tracked by the program if the user has
 ## adjusted the time forward or backward
 def outputNow():
-    now = ephem.now().tuple()
-    time = tuple(sum(x) for x in zip(now,displacement) )
-    e_time = ephem.Date(time)
+    #now = ephem.now().tuple()
+    #time = tuple(sum(x) for x in zip(now,displacement) )
+    #e_time = ephem.Date(time)
+    e_time = ephem.Date(p_time)
     print "Current time is", COL_YELLOW, e_time, COL_NORMAL + "UTC"
     print "Current time is", COL_YELLOW, ephem.localtime(e_time), COL_NORMAL+ "local time"
     return
@@ -381,7 +381,9 @@ def updateSat():
         while 1:
             if is_frozen == False:
                 now = ephem.now().tuple()
-                grnd.date = tuple(sum(k) for k in zip(now,displacement) )
+                global p_time
+                p_time = tuple(sum(k) for k in zip(now,displacement) )
+                grnd.date = p_time
 
             iss.compute(grnd)
             time.sleep(REFRESH_TIME)
@@ -482,6 +484,7 @@ def prompt():
 
 
 def main():
+
     # Check if installed
     if not isInstalled():
         installProgram()
@@ -519,12 +522,13 @@ def main():
             print COL_RED, "Error with grnd file.", COL_NORMAL, "Please update it with valid information."
             updateGrnd()
 
+    # set time
+    global p_time
+    p_time = ephem.now().tuple()
     global displacement
     displacement = ZERO_TUPLE
     global is_frozen
     is_frozen = False
-
-    #outputGrnd()
 
     # use threading module to spawn new threads
     my_threads = list()

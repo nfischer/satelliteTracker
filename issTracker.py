@@ -11,6 +11,7 @@ import os
 import getpass
 import urllib2
 import time
+import datetime
 #import math
 import thread
 import threading
@@ -295,6 +296,15 @@ def main():
         installProgram()
 
     ## initialize satellite info
+    stamp = datetime.datetime.fromtimestamp(os.stat(TLE_FILE)[8] )
+    stamp = stamp + datetime.timedelta(days=3)
+
+    if datetime.datetime.now() > stamp:
+        # TLE is old
+        resp = raw_input("Your TLE is getting a little stale. Would you like to update it? (y/n) ")
+        if resp == "y":
+            updateTLE()
+
     # pull the TLE from disc
     try:
         f = open(TLE_FILE, 'r')

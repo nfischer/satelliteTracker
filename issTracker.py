@@ -43,24 +43,25 @@ def handleDependencies():
         print "Try:\nsudo pip install pyephem"
         return returner
 
-    resp = raw_input("Would you like this program to install these dependencies for you? (y/n) ")
+    msg = "Would you like this program to install these dependencies for you? (y/n) "
+    resp = raw_input(msg)
     if resp == "y":
         if os.system("which pip >/dev/null 2>&1") == 0:
             # pip is already installed
             cmd = "sudo pip install pyephem"
             print cmd
-            ret = os.system(cmd)
-            if ret != 0:
+            result = os.system(cmd)
+            if result != 0:
                 print "There was some failure with the command"
-                returner = 1
+                returner = result
 
         else:
             for cmd in instCmds.split('\n'):
                 print cmd
-                ret = os.system(cmd)
-                if ret != 0:
+                result = os.system(cmd)
+                if result != 0:
                     print "There was some failure with the command"
-                    returner = 1
+                    returner = result
 
     return returner
 
@@ -72,20 +73,20 @@ except:
 
     exit(ret)
 
-# global "constants"
+## Global "constants"
 REFRESH_TIME = 1 # in seconds
 SAT_NAME = "ISS"
 TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
-ZERO_TUPLE = (0,0,0,0,0,0)
+ZERO_TUPLE = (0, 0, 0, 0, 0, 0)
 
 def getHomeDir():
-   return os.path.expanduser("~")
+    return os.path.expanduser("~")
 
 DATA_DIR  = os.path.join(getHomeDir(), ".satTracker")
 TLE_FILE  = os.path.join(DATA_DIR, "tles.txt")
 GRND_FILE = os.path.join(DATA_DIR, "grnd.txt")
 
-# colors
+## Colors
 COL_NORMAL = '\033[0m'
 COL_GREY   = '\033[90m'
 COL_RED    = '\033[91m'
@@ -96,12 +97,12 @@ COL_PURPLE = '\033[95m'
 COL_CYAN   = '\033[96m'
 COL_WHITE  = '\033[97m'
 
-# global variables
-global grnd
-global iss
-global displacement
-global is_frozen
-global p_time
+## Global variables
+# grnd
+# iss
+# displacement
+# is_frozen
+# p_time
 
 #######################################
 ## Functions
@@ -341,12 +342,11 @@ def outputSat():
 ## This will print the time being tracked by the program if the user has
 ## adjusted the time forward or backward
 def outputNow():
-    #now = ephem.now().tuple()
-    #time = tuple(sum(x) for x in zip(now,displacement) )
-    #e_time = ephem.Date(time)
     e_time = ephem.Date(p_time)
-    print "Current time is", COL_YELLOW, e_time, COL_NORMAL + "UTC"
-    print "Current time is", COL_YELLOW, ephem.localtime(e_time), COL_NORMAL+ "local time"
+    l_time = ephem.localtime(e_time)
+    cti = "Current time is"+COL_YELLOW
+    print cti, e_time, COL_NORMAL + "UTC"
+    print cti, l_time, COL_NORMAL + "local time"
     return
 
 ## Updates the program's TLEs for satellites. It saves them on disc
@@ -456,7 +456,7 @@ def prompt():
             elif matches(key,"help") or key == "--help":
                 usage()
             elif matches(key,"clear") or key == "cls":
-                os.system('clear');
+                os.system('clear')
             elif matches(key,"update"):
                 updateTLE()
                 print "Update is complete"
@@ -495,7 +495,8 @@ def main():
 
     if datetime.datetime.now() > stamp:
         # TLE is old
-        resp = raw_input("Your TLE is getting a little stale. Would you like to update it? (y/n) ")
+        prompt = "Your TLE is getting a little stale. Would you like to update it? (y/n) "
+        resp = raw_input(prompt)
         if resp == "y":
             updateTLE()
 
@@ -519,7 +520,8 @@ def main():
             break
         else:
             # there was an error with the file format or the file did not exist
-            print COL_RED, "Error with grnd file.", COL_NORMAL, "Please update it with valid information."
+            msg = COL_RED + "Error with grnd file." + COL_NORMAL + "Please update it with valid information."
+            print msg
             updateGrnd()
 
     # set time

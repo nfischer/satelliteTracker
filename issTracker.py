@@ -495,8 +495,8 @@ def main():
 
     if datetime.datetime.now() > stamp:
         # TLE is old
-        prompt = "Your TLE is getting a little stale. Would you like to update it? (y/n) "
-        resp = raw_input(prompt)
+        msg = "Your TLE is getting a little stale. Would you like to update it? (y/n) "
+        resp = raw_input(msg)
         if resp == "y":
             updateTLE()
 

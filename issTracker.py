@@ -10,7 +10,6 @@ import os
 import urllib2
 import time
 import datetime
-#import math
 import threading
 
 
@@ -65,7 +64,6 @@ def handleDependencies():
 
     return returner
 
-
 try:
     import ephem
 except:
@@ -113,15 +111,14 @@ def killProgram(status):
     # if there are ever multiple threads that should be killed
 
     print "\nProgram is terminating."
-    #thread.interrupt_main() # kills main & all daemon threads
+    # kills main & all daemon threads
     os._exit(status)
 
 def setGrnd():
     # This sets the grnd global variable
     try:
-        f = open(GRND_FILE, 'r')
-        grndString = f.read()
-        f.close()
+        with open(GRND_FILE, 'r') as f:
+          grndString = f.read()
         lines = grndString.split('\n')
         global grnd
         grnd = ephem.Observer()
@@ -328,6 +325,7 @@ def outputSat():
     pass_tuple = grnd.next_pass(iss)
     timeOfPass = ephem.localtime(pass_tuple[0])
     setTime = ephem.localtime(pass_tuple[2])
+    transTime = pass_tuple[4]
     print s_name
     print "long:", COL_GREEN, s_long, COL_NORMAL
     print "lat: ", COL_GREEN, s_lat,  COL_NORMAL
@@ -336,6 +334,7 @@ def outputSat():
     print "elevation:", s_elev
     print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL + "local time"
     print "end time:   " + COL_YELLOW, setTime, COL_NORMAL
+    print "transit time:   " + COL_RED, transTime, COL_NORMAL
     return
 
 ## By default, it prints the current time in UTC and local time
@@ -363,9 +362,8 @@ def updateTLE():
     tleData = html[0:endSub]
 
     # write the data to file
-    f = open(TLE_FILE, 'w')
-    f.write(tleData)
-    f.close()
+    with open(TLE_FILE, 'w') as f:
+        f.write(tleData)
 
     # reload TLEs in satellite object
     lines = tleData.split('\n')
@@ -378,6 +376,7 @@ def updateTLE():
 ## This is the function that updates the satellite object's position info
 def updateSat():
     try:
+        has_shown_pass = 0
         while 1:
             if is_frozen == False:
                 now = ephem.now().tuple()
@@ -386,6 +385,16 @@ def updateSat():
                 grnd.date = p_time
 
             iss.compute(grnd)
+            my_pass_tuple = grnd.next_pass(iss)
+            startTime = ephem.localtime(my_pass_tuple[0])
+            setTime = ephem.localtime(my_pass_tuple[2])
+            if has_shown_pass > 0:
+                has_shown_pass = has_shown_pass - 1
+            if startTime > setTime and has_shown_pass == 0:
+                # This can only happen if we're in a pass right now
+                print COL_RED+"\n\n    THIS IS A PASS\n"+COL_NORMAL
+                has_shown_pass = 10 # output once every 10 seconds
+
             time.sleep(REFRESH_TIME)
     except:
         exit(0)
@@ -502,9 +511,8 @@ def main():
 
     # pull the TLE from disc
     try:
-        f = open(TLE_FILE, 'r')
-        tleString = f.read()
-        f.close()
+        with open(TLE_FILE, 'r') as f:
+            tleString = f.read()
         lines = tleString.split('\n')
         global iss
         iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
@@ -553,16 +561,13 @@ def main():
         killProgram(0)
 
 
-
-
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--help":
+            usage()
+            exit(0)
+
     # execute the main function now
     main()
-
-
-
-
-
-
 
 exit(0)

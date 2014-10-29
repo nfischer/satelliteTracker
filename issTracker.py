@@ -353,7 +353,11 @@ def outputNow():
 def updateTLE():
 
     # fetch the webpage first
-    response = urllib2.urlopen(TLE_URL)
+    try:
+        response = urllib2.urlopen(TLE_URL)
+    except Exception as e:
+        print "Could not update TLE: %s" % str(e)
+        return
 
     html = response.read() # returns a string
 
@@ -399,6 +403,19 @@ def updateSat():
     except:
         exit(0)
 
+## This loads all saved cron jobs, checks if jobs needs to be run, and then
+## waits to run jobs when their deadline comes
+def cronDaemon():
+    # Load in cron jobs from disk
+
+    # Loop for new jobs
+    while True:
+        # Check jobs
+
+        # Sleep
+        time.sleep(1)
+
+    return
 
 ## Takes two strings and returns True if one is a substring of the other
 ## and begins at the first character of the string.
@@ -543,11 +560,14 @@ def main():
     # use threading module to spawn new threads
     my_threads = list()
     my_threads.append(threading.Thread(target=updateSat) )
+    my_threads.append(threading.Thread(target=cronDaemon) )
     my_threads.append(threading.Thread(target=prompt) )
     my_threads[0].daemon = True # run this thread in the background
-    my_threads[1].daemon = False
+    my_threads[1].daemon = True # run this thread in the background
+    my_threads[2].daemon = False
     my_threads[0].start()
     my_threads[1].start()
+    my_threads[2].start()
 
     for t in my_threads:
         while t.isAlive():

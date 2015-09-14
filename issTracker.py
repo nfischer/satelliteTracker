@@ -13,53 +13,54 @@ import datetime
 import threading
 
 
-def handleDependencies():
+def handle_dependencies():
+    """Installs dependencies for the project (related to self-installer)"""
 
     returner = 0
 
-    linInstall = """
+    lin_install = """
     sudo apt-get install python-pip
     sudo apt-get install python-dev
     sudo pip install pyephem
     """
-    macInstall = """
+    mac_install = """
     sudo easy_install pip
     sudo pip install pyephem
     """
 
-    instCmds = linInstall # default
+    install_cmds = lin_install # default
     print "You don't have pyephem installed!"
-    print "Install it like so:"
-    opSys = sys.platform
-    if opSys == "linux" or opSys == "linux2":
-        print linInstall
-        instCmds = linInstall
-    elif opSys == "darwin":
-        print macInstall
-        instCmds = macInstall
+    print 'Install it like so:'
+    if sys.platform == 'linux' or sys.platform == 'linux2':
+        print lin_install
+        install_cmds = lin_install
+    elif sys.platform == 'darwin':
+        print mac_install
+        install_cmds = mac_install
     else:
-        print "Your system is not currently supported, so it may not work."
-        print "Try:\nsudo pip install pyephem"
+        print 'Your system is not currently supported, so it may not work.'
+        print 'Try:\nsudo pip install pyephem'
         return returner
 
-    msg = "Would you like this program to install these dependencies for you? (y/n) "
+    msg = ('Would you like this program to install these dependencies for you? '
+           '(y/n) ')
     resp = raw_input(msg)
-    if resp == "y":
-        if os.system("which pip >/dev/null 2>&1") == 0:
+    if resp == 'y':
+        if os.system('which pip >/dev/null 2>&1') == 0:
             # pip is already installed
-            cmd = "sudo pip install pyephem"
+            cmd = 'sudo pip install pyephem'
             print cmd
             result = os.system(cmd)
             if result != 0:
-                print "There was some failure with the command"
+                print 'There was some failure with the command'
                 returner = result
 
         else:
-            for cmd in instCmds.split('\n'):
+            for cmd in install_cmds.split('\n'):
                 print cmd
                 result = os.system(cmd)
                 if result != 0:
-                    print "There was some failure with the command"
+                    print 'There was some failure with the command'
                     returner = result
 
     return returner
@@ -67,33 +68,34 @@ def handleDependencies():
 try:
     import ephem
 except:
-    ret = handleDependencies()
+    RET = handle_dependencies()
+    exit(RET)
 
-    exit(ret)
-
-## Global "constants"
+## Global 'constants'
 REFRESH_TIME = 1 # in seconds
-SAT_NAME = "ISS"
-TLE_URL = "http://www.celestrak.com/NORAD/elements/stations.txt"
+SAT_NAME = 'ISS'
+TLE_URL = 'http://www.celestrak.com/NORAD/elements/stations.txt'
 ZERO_TUPLE = (0, 0, 0, 0, 0, 0)
 
-def getHomeDir():
-    return os.path.expanduser("~")
+def get_home_dir():
+    """Return the user's home directory"""
+    return os.path.expanduser('~')
 
-DATA_DIR  = os.path.join(getHomeDir(), ".satTracker")
-TLE_FILE  = os.path.join(DATA_DIR, "tles.txt")
-GRND_FILE = os.path.join(DATA_DIR, "grnd.txt")
+DATA_DIR = os.path.join(get_home_dir(), '.satTracker')
+TLE_FILE = os.path.join(DATA_DIR, 'tles.txt')
+GRND_FILE = os.path.join(DATA_DIR, 'grnd.txt')
+CRON_FILE = os.path.join(DATA_DIR, 'cron.txt')
 
 ## Colors
 COL_NORMAL = '\033[0m'
-COL_GREY   = '\033[90m'
-COL_RED    = '\033[91m'
-COL_GREEN  = '\033[92m'
+COL_GREY = '\033[90m'
+COL_RED = '\033[91m'
+COL_GREEN = '\033[92m'
 COL_YELLOW = '\033[93m'
-COL_BLUE   = '\033[94m'
+COL_BLUE = '\033[94m'
 COL_PURPLE = '\033[95m'
-COL_CYAN   = '\033[96m'
-COL_WHITE  = '\033[97m'
+COL_CYAN = '\033[96m'
+COL_WHITE = '\033[97m'
 
 ## Global variables
 # grnd
@@ -106,24 +108,28 @@ COL_WHITE  = '\033[97m'
 ## Functions
 #######################################
 
-def killProgram(status):
-    # This is the function that should be called to kill the program cleanly
-    # if there are ever multiple threads that should be killed
+def kill_program(status):
+    """
+    This is the function that should be called to kill the program cleanly
+    if there are ever multiple threads that should be killed
+    """
 
-    print "\nProgram is terminating."
+    print '\nProgram is terminating.'
     # kills main & all daemon threads
     os._exit(status)
 
-def setGrnd():
-    # This sets the grnd global variable
+def set_grnd():
+    """
+    This sets the grnd global variable
+    """
     try:
-        with open(GRND_FILE, 'r') as f:
-          grndString = f.read()
-        lines = grndString.split('\n')
+        with open(GRND_FILE, 'r') as fname:
+            grnd_string = fname.read()
+        lines = grnd_string.split('\n')
         global grnd
         grnd = ephem.Observer()
         g_long = float(lines[0])
-        g_lat =  float(lines[1])
+        g_lat = float(lines[1])
         g_elev = float(lines[2])
 
         # Check for invalid values
@@ -136,46 +142,47 @@ def setGrnd():
         if g_elev < 0 or g_elev > 8848: # height of Mt. Everest
             return 1
         grnd.long = g_long
-        grnd.lat =  g_lat
+        grnd.lat = g_lat
         grnd.elev = g_elev
         return 0
     except:
         # Error, so we need to rewrite grnd file
         return 2
 
-def updateGrnd():
+def update_grnd():
+    """This allows users to change the ground station information"""
 
-    print "Please enter information for your ground observer:"
-    print "Leave a line blank to use the default value (for O.C.)."
-    u_long = raw_input("Longitude (degrees): ")
-    u_lat  = raw_input("Latitude (degrees): ")
-    u_elev = raw_input("Elevation (m): ")
+    print 'Please enter information for your ground observer:'
+    print 'Leave a line blank to use the default value (for O.C.).'
+    u_long = raw_input('Longitude (degrees): ')
+    u_lat = raw_input('Latitude (degrees): ')
+    u_elev = raw_input('Elevation (m): ')
 
-    defLong = -118.45
-    defLat  = 34.0665
-    defElev = 95.0
+    default_long = -118.45
+    default_lat = 34.0665
+    default_elev = 95.0
 
     # set values
     try:
         u_long = float(u_long)
     except:
-        u_long = defLong
+        u_long = default_long
 
     try:
         u_lat = float(u_lat)
     except:
-        u_lat = defLat
+        u_lat = default_lat
 
     try:
         u_elev = float(u_elev)
     except:
-        u_elev = defElev
+        u_elev = default_elev
 
 
 
     # check validity of values & their types
     if u_elev < 0:
-        u_elev = defElev
+        u_elev = default_elev
 
 
     # convert to radians
@@ -183,20 +190,22 @@ def updateGrnd():
     u_lat = u_lat * ephem.degree
 
     # write values to file
-    values = [ str(u_long), str(u_lat), str(u_elev), ""]
-    grndString = '\n'.join(values)
+    values = [str(u_long), str(u_lat), str(u_elev), '']
+    grnd_string = '\n'.join(values)
 
-    with open(GRND_FILE, 'w') as f:
-        f.write(grndString)
+    with open(GRND_FILE, 'w') as fname:
+        fname.write(grnd_string)
 
     return
 
 
-## Installs user data on the system
-## Creates the directory and asks for input for ground observer info
-def installProgram():
+def install_program():
+    """
+    Installs user data on the system.
+    Creates the directory and asks for input for ground observer info.
+    """
 
-    installMsg = """
+    print """
     Would you like to allow issTracker to install on your computer?
 
     It will create on your computer:
@@ -207,68 +216,61 @@ def installProgram():
 
     """
 
-    print installMsg
-    decision = raw_input("Do you want to install issTracker? (y/n): ")
-    if decision != "y":
-        print "Not installing. Terminating issTracker."
+    decision = raw_input('Do you want to install issTracker? (y/n): ')
+    if decision != 'y':
+        print 'Not installing. Terminating issTracker.'
         exit(1)
 
-    print "\nInstalling issTracker\n"
+    print '\nInstalling issTracker\n'
 
     # make the directory
-    dirExistsCmd = "test -d " + DATA_DIR
-    if os.system(dirExistsCmd) != 0:
-        if os.system("mkdir "+DATA_DIR) != 0:
-            print "There was an error installing the program."
+    dir_exists_cmd = 'test -d ' + DATA_DIR
+    if os.system(dir_exists_cmd) != 0:
+        if os.system('mkdir '+DATA_DIR) != 0:
+            print 'There was an error installing the program.'
             exit(1)
 
-    if os.system("test -f "+GRND_FILE) != 0:
-        updateGrnd()
+    if os.system('test -f '+GRND_FILE) != 0:
+        update_grnd()
 
     return
 
 
+def is_installed():
+    """returns True if issTracker.py appears to be installed correctly"""
 
-## returns True if issTracker.py appears to be installed correctly
-def isInstalled():
-
-    dirExistsCmd = "test -d " + DATA_DIR
-    if os.system(dirExistsCmd) != 0:
+    dir_exists_cmd = 'test -d ' + DATA_DIR
+    if os.system(dir_exists_cmd) != 0:
         return False
-
-
-    grndExistsCmd = "test -f " + GRND_FILE
-    if os.system(grndExistsCmd) != 0:
+    grnd_exists_cmd = 'test -f ' + GRND_FILE
+    if os.system(grnd_exists_cmd) != 0:
         return False
-
-
     return True
 
 
-## Adjusts time forward, backward, or resets it to current time
-def handleTime(argv):
-    # parse further
+def handle_time(argv):
+    """Adjusts time forward, backward, or resets it to current time"""
     argc = len(argv)
-    p = "" # first (primary)
-    s = "" # second
-    t = "" # third
+    p = '' # first (primary)
+    s = '' # second
+    # t = '' # third
     adjuster = ZERO_TUPLE
     if argc > 1:
         # check for single-argument commands
         p = argv[1]
-        if matches(p,"reset"):
-            print "Time is reset to now"
+        if matches(p, 'reset'):
+            print 'Time is reset to now'
             global displacement
             displacement = ZERO_TUPLE
             global is_frozen
             is_frozen = False
             return
-        if matches(p,"freeze") or matches(p,"frozen"):
+        if matches(p, 'freeze') or matches(p, 'frozen'):
             print "Time is now frozen. Use 'unfreeze' to undo this."
             is_frozen = True
             return
-        if matches(p,"unfreeze"):
-            print "Time is now unfrozen."
+        if matches(p, 'unfreeze'):
+            print 'Time is now unfrozen.'
             is_frozen = False
             return
     if argc > 2:
@@ -279,42 +281,42 @@ def handleTime(argv):
             return
 
         adj_list = list(adjuster)
-        if matches(p,"Year") or matches(p,"year"):
+        if matches(p, 'Year') or matches(p, 'year'):
             adj_list[0] = s
-        if matches(p,"Month"):
+        if matches(p, 'Month'):
             adj_list[1] = s
-        if matches(p,"Day") or matches(p,"day"):
+        if matches(p, 'Day') or matches(p, 'day'):
             adj_list[2] = s
-        if matches(p,"hour") or matches(p,"Hour"):
+        if matches(p, 'hour') or matches(p, 'Hour'):
             adj_list[3] = s
-        if matches(p,"minute"):
+        if matches(p, 'minute'):
             adj_list[4] = s
-        if matches(p,"second") or matches(p,"Second"):
+        if matches(p, 'second') or matches(p, 'Second'):
             adj_list[5] = s
 
         adjuster = tuple(adj_list)
 
     # now adjust displacement
-    adjuster = tuple(sum(k) for k in zip(displacement,adjuster) )
+    adjuster = tuple(sum(k) for k in zip(displacement, adjuster))
 
     displacement = adjuster
     return
 
 
-## Prints output for user's groundstation
-def outputGrnd():
+def output_grnd():
+    """Prints output for user's groundstation"""
     g_long = grnd.long
     g_lat = grnd.lat
     g_elev = grnd.elev
 
-    print "Printing info for your ground observer:"
-    print "long:", COL_BLUE, g_long, COL_NORMAL
-    print "lat: ", COL_BLUE, g_lat,  COL_NORMAL
-    print "elev:", g_elev
+    print 'Printing info for your ground observer:'
+    print 'long:', COL_BLUE, g_long, COL_NORMAL
+    print 'lat: ', COL_BLUE, g_lat, COL_NORMAL
+    print 'elev:', g_elev
     return
 
-## Prints output the satellite
-def outputSat():
+def output_sat():
+    """Prints output for the satellite"""
 
     s_name = iss.name
     s_long = iss.sublong
@@ -323,90 +325,101 @@ def outputSat():
     s_alt = iss.alt
     s_elev = iss.elevation
     pass_tuple = grnd.next_pass(iss)
-    timeOfPass = ephem.localtime(pass_tuple[0])
-    setTime = ephem.localtime(pass_tuple[2])
-    transTime = pass_tuple[4]
+    time_of_pass = ephem.localtime(pass_tuple[0])
+    set_time = ephem.localtime(pass_tuple[2])
+    trans_time = pass_tuple[4]
     print s_name
-    print "long:", COL_GREEN, s_long, COL_NORMAL
-    print "lat: ", COL_GREEN, s_lat,  COL_NORMAL
-    print "azimuth:", s_az
-    print "altitude:", s_alt
-    print "elevation:", s_elev
-    print "next pass at" + COL_YELLOW, timeOfPass, COL_NORMAL + "local time"
-    print "end time:   " + COL_YELLOW, setTime, COL_NORMAL
-    print "transit time:   " + COL_RED, transTime, COL_NORMAL
+    print 'long:', COL_GREEN, s_long, COL_NORMAL
+    print 'lat: ', COL_GREEN, s_lat, COL_NORMAL
+    print 'azimuth:', s_az
+    print 'altitude:', s_alt
+    print 'elevation:', s_elev
+    print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + 'local time'
+    print 'end time:   ' + COL_YELLOW, set_time, COL_NORMAL
+    print 'transit time:   ' + COL_RED, trans_time, COL_NORMAL
     return
 
-## By default, it prints the current time in UTC and local time
-## This will print the time being tracked by the program if the user has
-## adjusted the time forward or backward
-def outputNow():
+def output_now():
+    """
+    By default, it prints the current time in UTC and local time This will
+    print the time being tracked by the program if the user has adjusted the
+    time forward or backward
+    """
     e_time = ephem.Date(p_time)
     l_time = ephem.localtime(e_time)
-    cti = "Current time is"+COL_YELLOW
-    print cti, e_time, COL_NORMAL + "UTC"
-    print cti, l_time, COL_NORMAL + "local time"
+    cti = 'Current time is'+COL_YELLOW
+    print cti, e_time, COL_NORMAL + 'UTC'
+    print cti, l_time, COL_NORMAL + 'local time'
     return
 
-## Updates the program's TLEs for satellites. It saves them on disc
-## Looks in the current directory for the TLE file
-def updateTLE():
+def update_tle():
+    """
+    Updates the program's TLEs for satellites. It saves them on disc Looks
+    in the current directory for the TLE file
+    """
 
     # fetch the webpage first
     try:
         response = urllib2.urlopen(TLE_URL)
     except Exception as e:
-        print "Could not update TLE: %s" % str(e)
+        print 'Could not update TLE: %s' % str(e)
         return
 
-    html = response.read() # returns a string
+    html_text = response.read() # returns a string
 
     # parse for the ISS (first 3 lines)
-    endSub = html.find('TIANGONG')
-    tleData = html[0:endSub]
+    end_sub = html_text.find('TIANGONG')
+    tle_data = html_text[0:end_sub]
 
     # write the data to file
-    with open(TLE_FILE, 'w') as f:
-        f.write(tleData)
+    with open(TLE_FILE, 'w') as fname:
+        fname.write(tle_data)
 
     # reload TLEs in satellite object
-    lines = tleData.split('\n')
+    lines = tle_data.split('\n')
     global iss
     iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
 
     return
 
 
-## This is the function that updates the satellite object's position info
-def updateSat():
+def update_sat():
+    """This is the function that updates the satellite object's position info"""
     try:
         has_shown_pass = 0
         while 1:
             if is_frozen == False:
                 now = ephem.now().tuple()
                 global p_time
-                p_time = tuple(sum(k) for k in zip(now,displacement) )
+                p_time = tuple(sum(k) for k in zip(now, displacement))
                 grnd.date = p_time
 
             iss.compute(grnd)
             my_pass_tuple = grnd.next_pass(iss)
-            startTime = ephem.localtime(my_pass_tuple[0])
-            setTime = ephem.localtime(my_pass_tuple[2])
+            start_time = ephem.localtime(my_pass_tuple[0])
+            set_time = ephem.localtime(my_pass_tuple[2])
             if has_shown_pass > 0:
                 has_shown_pass = has_shown_pass - 1
-            if startTime > setTime and has_shown_pass == 0:
+            if start_time > set_time and has_shown_pass == 0:
                 # This can only happen if we're in a pass right now
-                print COL_RED+"\n\n    THIS IS A PASS\n"+COL_NORMAL
+                print COL_RED+'\n\n    THIS IS A PASS\n'+COL_NORMAL
                 has_shown_pass = 10 # output once every 10 seconds
 
             time.sleep(REFRESH_TIME)
     except:
         exit(0)
 
-## This loads all saved cron jobs, checks if jobs needs to be run, and then
-## waits to run jobs when their deadline comes
-def cronDaemon():
+def cron_daemon():
+    """
+    This loads all saved cron jobs, checks if jobs needs to be run, and then
+    waits to run jobs when their deadline comes
+    """
     # Load in cron jobs from disk
+    if os.path.exists(CRON_FILE):
+        with open(CRON_FILE, 'r') as fname:
+            job_text = fname.read()
+        my_jobs = job_text.split('\n')
+    # print 'Jobs are loaded'
 
     # Loop for new jobs
     while True:
@@ -417,33 +430,34 @@ def cronDaemon():
 
     return
 
-## Takes two strings and returns True if one is a substring of the other
-## and begins at the first character of the string.
-def matches(a, b):
+def matches(str1, str2):
+    """
+    Takes two strings and returns True if one is a prefix of the other
+    """
 
-    lenA = len(a)
-    lenB = len(b)
+    len1 = len(str1)
+    len2 = len(str2)
 
-    if lenA == 0 or lenB == 0:
+    if len1 == 0 or len2 == 0:
         # empty string should return false always
         return False
 
-    if lenA > lenB:
-        # swap them so that a is shorter
-        tmp = b
-        b = a
-        a = tmp
+    if len1 > len2:
+        # swap them so that str1 is shorter
+        tmp = str2
+        str2 = str1
+        str1 = tmp
 
-    # assume that lenA <= lenB
-    b = b[0:lenA]
+    # assume that len1 <= len2
+    str2 = str2[0:len1]
 
-    # if a & b are a match, then return true
-    return a == b
+    # if str1 & str2 are str1 match, then return true
+    return str1 == str2
 
 
-## Outputs help info when the user inputs "help" at the command line
 def usage():
-    HELP_MSG="""
+    """Outputs help info when the user inputs 'help' at the command line"""
+    print """
 To enter a command to issTracker, enter one or more characters at the start
 of the desired command option.
 
@@ -456,98 +470,101 @@ update                           Update the ISS TLE automatically
 grnd, ground                     Display ground station information
 now                              Display the current time in UTC
 change                           Enter new ground station information
-time [YMDhms] <int>              Increase or decrease time by <int> Years,
+time [YMDhms] <int>              Increase or decrease time by <int> Years, 
                                  Months, Days, hours, minutes, seconds
 time reset                       Reset time to current time
 print (or simply hitting enter)  Display ISS location and time of next pass
 """
-    print HELP_MSG
     return
 
 
-## Creates a command line within the program
 def prompt():
+    """Creates a command line within the program"""
     try:
         while 1:
-            text = raw_input("\nPress enter to see values, q to quit: ")
+            text = raw_input('\nPress enter to see values, q to quit: ')
             key_list = []
-            key = ""
-            if text != "":
+            key = ''
+            if text != '':
                 key_list = text.split()
                 key = key_list[0]
 
-            if matches(key,"quit") or key == "Q" or key == ";q" or key == "exit":
-                killProgram(0)
+            if (matches(key, 'quit') or key == 'Q' or key == ';q' or
+                    key == 'exit'):
+                kill_program(0)
                 sys.exit(0) # redundant, but safe
-            elif matches(key,"help") or key == "--help":
+            elif matches(key, 'help') or key == '--help':
                 usage()
-            elif matches(key,"clear") or key == "cls":
+            elif matches(key, 'clear') or key == 'cls':
                 os.system('clear')
-            elif matches(key,"update"):
-                updateTLE()
-                print "Update is complete"
-            elif matches(key,"grnd") or key == "ground":
-                outputGrnd()
-            elif matches(key,"now"):
-                outputNow()
-            elif matches(key,"change"):
-                updateGrnd()
-                ret = setGrnd()
+            elif matches(key, 'update'):
+                update_tle()
+                print 'Update is complete'
+            elif matches(key, 'grnd') or key == 'ground':
+                output_grnd()
+            elif matches(key, 'now'):
+                output_now()
+            elif matches(key, 'change'):
+                update_grnd()
+                ret = set_grnd()
                 if ret == 0:
-                    print "Your update of ground station info is complete."
-                    outputGrnd()
+                    print 'Your update of ground station info is complete.'
+                    output_grnd()
                 else:
-                    print "It appears there was an error with your grnd values."
-                    killProgram(1)
-            elif matches(key,"time"):
-                handleTime(key_list)
+                    print 'It appears there was an error with your grnd values.'
+                    kill_program(1)
+            elif matches(key, 'time'):
+                handle_time(key_list)
 
             else:
-                outputSat()
+                output_sat()
     except:
         exit(0)
 
 
 
 def main():
+    """The main function"""
 
     # Check if installed
-    if not isInstalled():
-        installProgram()
+    if not is_installed():
+        install_program()
 
     ## initialize satellite info
-    stamp = datetime.datetime.fromtimestamp(os.stat(TLE_FILE)[8] )
+    stamp = datetime.datetime.fromtimestamp(os.stat(TLE_FILE)[8])
     stamp = stamp + datetime.timedelta(days=3)
 
     if datetime.datetime.now() > stamp:
         # TLE is old
-        msg = "Your TLE is getting a little stale. Would you like to update it? (y/n) "
+        msg = ('Your TLE is getting a little stale. Would you like to update '
+               'it? (y/n) ')
         resp = raw_input(msg)
-        if resp == "y":
-            updateTLE()
+        if resp == 'y':
+            update_tle()
 
     # pull the TLE from disc
     try:
-        with open(TLE_FILE, 'r') as f:
-            tleString = f.read()
-        lines = tleString.split('\n')
+        with open(TLE_FILE, 'r') as fname:
+            tle_string = fname.read()
+        lines = tle_string.split('\n')
         global iss
         iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
     except:
         # there was an error with the file format or the file did not exist
-        updateTLE()
+        update_tle()
 
 
     ## set up ground station information
     while True:
-        ret = setGrnd()
+        ret = set_grnd()
         if ret == 0:
             break
         else:
             # there was an error with the file format or the file did not exist
-            msg = COL_RED + "Error with grnd file." + COL_NORMAL + "Please update it with valid information."
+            msg = (COL_RED + 'Error with grnd file.' + COL_NORMAL +
+                   'Please update it with valid information.')
             print msg
-            updateGrnd()
+            update_grnd()
 
     # set time
     global p_time
@@ -559,9 +576,9 @@ def main():
 
     # use threading module to spawn new threads
     my_threads = list()
-    my_threads.append(threading.Thread(target=updateSat) )
-    my_threads.append(threading.Thread(target=cronDaemon) )
-    my_threads.append(threading.Thread(target=prompt) )
+    my_threads.append(threading.Thread(target=update_sat))
+    my_threads.append(threading.Thread(target=cron_daemon))
+    my_threads.append(threading.Thread(target=prompt))
     my_threads[0].daemon = True # run this thread in the background
     my_threads[1].daemon = True # run this thread in the background
     my_threads[2].daemon = False
@@ -569,21 +586,21 @@ def main():
     my_threads[1].start()
     my_threads[2].start()
 
-    for t in my_threads:
-        while t.isAlive():
-            t.join(2)
+    for thread in my_threads:
+        while thread.isAlive():
+            thread.join(2)
 
     try:
         while 1:
             pass
-        killProgram(0)
+        kill_program(0)
     except:
-        killProgram(0)
+        kill_program(0)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if len(sys.argv) > 1:
-        if sys.argv[1] == "--help":
+        if sys.argv[1] == '--help':
             usage()
             exit(0)
 

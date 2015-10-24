@@ -5,12 +5,13 @@
 ## Import modules
 #######################################
 
-import sys
-import os
-import urllib2
-import time
 import datetime
+import dbus
+import os
+import sys
 import threading
+import time
+import urllib2
 
 
 def handle_dependencies():
@@ -67,7 +68,7 @@ def handle_dependencies():
 
 try:
     import ephem
-except:
+except ImportError:
     RET = handle_dependencies()
     exit(RET)
 
@@ -118,6 +119,19 @@ def kill_program(status):
     # kills main & all daemon threads
     os._exit(status)
 
+def notify(summary, body='', app_name='', app_icon='',
+           timeout=3000, actions=[], hints=[], replaces_id=0):
+    """Send a system notification"""
+    _bus_name = 'org.freedesktop.Notifications'
+    _object_path = '/org/freedesktop/Notifications'
+    _interface_name = _bus_name
+
+    session_bus = dbus.SessionBus()
+    obj = session_bus.get_object(_bus_name, _object_path)
+    interface = dbus.Interface(obj, _interface_name)
+    interface.Notify(app_name, replaces_id, app_icon,
+                     summary, body, actions, hints, timeout)
+
 def set_grnd():
     """
     This sets the grnd global variable
@@ -165,17 +179,17 @@ def update_grnd():
     # set values
     try:
         u_long = float(u_long)
-    except:
+    except ValueError:
         u_long = default_long
 
     try:
         u_lat = float(u_lat)
-    except:
+    except ValueError:
         u_lat = default_lat
 
     try:
         u_elev = float(u_elev)
-    except:
+    except ValueError:
         u_elev = default_elev
 
 
@@ -251,48 +265,45 @@ def is_installed():
 def handle_time(argv):
     """Adjusts time forward, backward, or resets it to current time"""
     argc = len(argv)
-    p = '' # first (primary)
-    s = '' # second
-    # t = '' # third
     adjuster = ZERO_TUPLE
     if argc > 1:
         # check for single-argument commands
-        p = argv[1]
-        if matches(p, 'reset'):
+        fst = argv[1]
+        if matches(fst, 'reset'):
             print 'Time is reset to now'
             global displacement
             displacement = ZERO_TUPLE
             global is_frozen
             is_frozen = False
             return
-        if matches(p, 'freeze') or matches(p, 'frozen'):
+        if matches(fst, 'freeze') or matches(fst, 'frozen'):
             print "Time is now frozen. Use 'unfreeze' to undo this."
             is_frozen = True
             return
-        if matches(p, 'unfreeze'):
+        if matches(fst, 'unfreeze'):
             print 'Time is now unfrozen.'
             is_frozen = False
             return
     if argc > 2:
-        s = argv[2]
+        scnd = argv[2]
         try:
-            s = int(s)
-        except:
+            scnd = int(scnd)
+        except ValueError:
             return
 
         adj_list = list(adjuster)
-        if matches(p, 'Year') or matches(p, 'year'):
-            adj_list[0] = s
-        if matches(p, 'Month'):
-            adj_list[1] = s
-        if matches(p, 'Day') or matches(p, 'day'):
-            adj_list[2] = s
-        if matches(p, 'hour') or matches(p, 'Hour'):
-            adj_list[3] = s
-        if matches(p, 'minute'):
-            adj_list[4] = s
-        if matches(p, 'second') or matches(p, 'Second'):
-            adj_list[5] = s
+        if matches(fst, 'Year') or matches(fst, 'year'):
+            adj_list[0] = scnd
+        if matches(fst, 'Month'):
+            adj_list[1] = scnd
+        if matches(fst, 'Day') or matches(fst, 'day'):
+            adj_list[2] = scnd
+        if matches(fst, 'hour') or matches(fst, 'Hour'):
+            adj_list[3] = scnd
+        if matches(fst, 'minute'):
+            adj_list[4] = scnd
+        if matches(fst, 'second') or matches(fst, 'Second'):
+            adj_list[5] = scnd
 
         adjuster = tuple(adj_list)
 
@@ -397,13 +408,17 @@ def update_sat():
             iss.compute(grnd)
             my_pass_tuple = grnd.next_pass(iss)
             start_time = ephem.localtime(my_pass_tuple[0])
-            set_time = ephem.localtime(my_pass_tuple[2])
-            if has_shown_pass > 0:
-                has_shown_pass = has_shown_pass - 1
-            if start_time > set_time and has_shown_pass == 0:
+            end_time = ephem.localtime(my_pass_tuple[2])
+            if start_time > end_time and has_shown_pass == 0:
                 # This can only happen if we're in a pass right now
-                print COL_RED+'\n\n    THIS IS A PASS\n'+COL_NORMAL
-                has_shown_pass = 10 # output once every 10 seconds
+                msg_string = iss.name + ' is currently passing overhead'
+                try:
+                    notify(msg_string)
+                except dbus.DBusException:
+                    print msg_string
+                has_shown_pass = 1
+            elif start_time < end_time and has_shown_pass == 1:
+                has_shown_pass = 0
 
             time.sleep(REFRESH_TIME)
     except:
@@ -549,7 +564,7 @@ def main():
         lines = tle_string.split('\n')
         global iss
         iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
-    except:
+    except (IOError, ValueError):
         # there was an error with the file format or the file did not exist
         update_tle()
 

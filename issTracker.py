@@ -372,7 +372,7 @@ def update_tle():
     # fetch the webpage first
     try:
         response = urllib2.urlopen(TLE_URL)
-    except Exception as e:
+    except ValueError as e:
         print 'Could not update TLE: %s' % str(e)
         return
 

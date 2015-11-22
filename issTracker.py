@@ -238,13 +238,14 @@ def install_program():
     print '\nInstalling issTracker\n'
 
     # make the directory
-    dir_exists_cmd = 'test -d ' + DATA_DIR
-    if os.system(dir_exists_cmd) != 0:
-        if os.system('mkdir '+DATA_DIR) != 0:
+    if not os.path.isdir(DATA_DIR):
+        try:
+            os.mkdir(DATA_DIR)
+        except OSError:
             print 'There was an error installing the program.'
             exit(1)
 
-    if os.system('test -f '+GRND_FILE) != 0:
+    if not os.path.exists(GRND_FILE):
         update_grnd()
 
     return
@@ -253,13 +254,7 @@ def install_program():
 def is_installed():
     """returns True if issTracker.py appears to be installed correctly"""
 
-    dir_exists_cmd = 'test -d ' + DATA_DIR
-    if os.system(dir_exists_cmd) != 0:
-        return False
-    grnd_exists_cmd = 'test -f ' + GRND_FILE
-    if os.system(grnd_exists_cmd) != 0:
-        return False
-    return True
+    return os.path.isdir(DATA_DIR) and os.path.exists(GRND_FILE)
 
 
 def handle_time(argv):
@@ -365,11 +360,10 @@ def output_now():
 
 def update_tle():
     """
-    Updates the program's TLEs for satellites. It saves them on disc Looks
-    in the current directory for the TLE file
+    Updates the program's TLEs for satellites
     """
 
-    # fetch the webpage first
+    # fetch the raw data
     try:
         response = urllib2.urlopen(TLE_URL)
     except ValueError as e:
@@ -577,7 +571,7 @@ def main():
             break
         else:
             # there was an error with the file format or the file did not exist
-            msg = (COL_RED + 'Error with grnd file.' + COL_NORMAL +
+            msg = (COL_RED + 'Error with ground file.' + COL_NORMAL +
                    'Please update it with valid information.')
             print msg
             update_grnd()

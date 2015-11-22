@@ -8,6 +8,7 @@
 import datetime
 import dbus
 import os
+import signal
 import sys
 import threading
 import time
@@ -118,6 +119,9 @@ def kill_program(status):
     print '\nProgram is terminating.'
     # kills main & all daemon threads
     os._exit(status)
+
+def sig_handler(signumber, frame):
+    kill_program(0)
 
 def notify(summary, body='', app_name='', app_icon='',
            timeout=3000, actions=[], hints=[], replaces_id=0):
@@ -345,6 +349,25 @@ def output_sat():
     print 'transit time:   ' + COL_RED, trans_time, COL_NORMAL
     return
 
+def set_satellite(sat_name):
+    with open(TLE_FILE, 'r') as fname:
+        lines = fname.read().split('\n')
+    counter = 0
+    my_lines = []
+    for line in lines:
+        if matches(sat_name, line):
+            my_lines.append(line)
+            counter = 1
+        elif counter > 0 and counter < 3:
+            my_lines.append(line)
+            counter = counter + 1
+        elif counter == 3:
+            break
+
+    if len(my_lines) != 3:
+        raise ValueError('Unable to find satellite')
+    return ephem.readtle(sat_name, my_lines[1], my_lines[2])
+
 def output_now():
     """
     By default, it prints the current time in UTC and local time This will
@@ -366,25 +389,24 @@ def update_tle():
     # fetch the raw data
     try:
         response = urllib2.urlopen(TLE_URL)
-    except ValueError as e:
-        print 'Could not update TLE: %s' % str(e)
-        return
+    except (ValueError, urllib2.URLError) as e:
+        raise ValueError('Could not update TLE: %s' % str(e))
 
+    if response.getcode() != 200:
+        raise ValueError('Could not update TLE: status was %d' % response.getcode())
+    if response.geturl() != TLE_URL:
+        raise ValueError('URL was redirected')
     html_text = response.read() # returns a string
-
-    # parse for the ISS (first 3 lines)
-    end_sub = html_text.find('TIANGONG')
-    tle_data = html_text[0:end_sub]
 
     # write the data to file
     with open(TLE_FILE, 'w') as fname:
-        fname.write(tle_data)
+        fname.write(html_text)
 
-    # reload TLEs in satellite object
-    lines = tle_data.split('\n')
-    global sat
-    sat = ephem.readtle(SAT_NAME, lines[1], lines[2])
-
+    try:
+        global sat
+        sat = set_satellite(SAT_NAME)
+    except Exception as e:
+        print str(e)
     return
 
 
@@ -508,8 +530,11 @@ def prompt():
             elif matches(key, 'clear') or key == 'cls':
                 os.system('clear')
             elif matches(key, 'update'):
-                update_tle()
-                print 'Update is complete'
+                try:
+                    update_tle()
+                    print 'Update is complete'
+                except ValueError:
+                    print 'Unable to update TLE'
             elif matches(key, 'grnd') or key == 'ground':
                 output_grnd()
             elif matches(key, 'now'):
@@ -550,19 +575,23 @@ def main():
                'it? (y/n) ')
         resp = raw_input(msg)
         if resp == 'y':
-            update_tle()
+            try:
+                update_tle()
+            except ValueError as e:
+                print str(e)
+                kill_program(1)
 
     # pull the TLE from disc
     try:
-        with open(TLE_FILE, 'r') as fname:
-            tle_string = fname.read()
-        lines = tle_string.split('\n')
         global sat
-        sat = ephem.readtle(SAT_NAME, lines[1], lines[2])
+        sat = set_satellite(SAT_NAME)
     except (IOError, ValueError):
         # there was an error with the file format or the file did not exist
-        update_tle()
-
+        try:
+            update_tle()
+        except ValueError as e:
+            print str(e)
+            kill_program(1)
 
     ## set up ground station information
     while True:
@@ -613,6 +642,9 @@ if __name__ == '__main__':
         if sys.argv[1] == '--help':
             usage()
             exit(0)
+
+    # Register signal handler
+    signal.signal(signal.SIGINT, sig_handler)
 
     # execute the main function now
     main()

@@ -100,7 +100,7 @@ COL_WHITE = '\033[97m'
 
 ## Global variables
 # grnd
-# iss
+# sat
 # displacement
 # is_frozen
 # p_time
@@ -329,13 +329,13 @@ def output_grnd():
 def output_sat():
     """Prints output for the satellite"""
 
-    s_name = iss.name
-    s_long = iss.sublong
-    s_lat = iss.sublat
-    s_az = iss.az
-    s_alt = iss.alt
-    s_elev = iss.elevation
-    pass_tuple = grnd.next_pass(iss)
+    s_name = sat.name
+    s_long = sat.sublong
+    s_lat = sat.sublat
+    s_az = sat.az
+    s_alt = sat.alt
+    s_elev = sat.elevation
+    pass_tuple = grnd.next_pass(sat)
     time_of_pass = ephem.localtime(pass_tuple[0])
     set_time = ephem.localtime(pass_tuple[2])
     trans_time = pass_tuple[4]
@@ -388,8 +388,8 @@ def update_tle():
 
     # reload TLEs in satellite object
     lines = tle_data.split('\n')
-    global iss
-    iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
+    global sat
+    sat = ephem.readtle(SAT_NAME, lines[1], lines[2])
 
     return
 
@@ -405,13 +405,13 @@ def update_sat():
                 p_time = tuple(sum(k) for k in zip(now, displacement))
                 grnd.date = p_time
 
-            iss.compute(grnd)
-            my_pass_tuple = grnd.next_pass(iss)
+            sat.compute(grnd)
+            my_pass_tuple = grnd.next_pass(sat)
             start_time = ephem.localtime(my_pass_tuple[0])
             end_time = ephem.localtime(my_pass_tuple[2])
             if start_time > end_time and has_shown_pass == 0:
                 # This can only happen if we're in a pass right now
-                msg_string = iss.name + ' is currently passing overhead'
+                msg_string = sat.name + ' is currently passing overhead'
                 try:
                     notify(msg_string)
                 except dbus.DBusException:
@@ -478,17 +478,18 @@ of the desired command option.
 
 issTracker command prompt options:
 
-quit                             This quits the application cleanly
-help                             This displays this help message
-clear                            Clear the screen
-update                           Update the ISS TLE automatically
-grnd, ground                     Display ground station information
-now                              Display the current time in UTC
-change                           Enter new ground station information
-time [YMDhms] <int>              Increase or decrease time by <int> Years, 
-                                 Months, Days, hours, minutes, seconds
-time reset                       Reset time to current time
-print (or simply hitting enter)  Display ISS location and time of next pass
+quit                              This quits the application cleanly
+help                              This displays this help message
+clear                             Clear the screen
+update                            Update the satellites TLE
+grnd, ground                      Display ground station information
+now                               Display the current time in UTC
+change                            Enter new ground station information
+time [YMDhms] <int>               Increase or decrease time by <int> Years,
+                                  Months, Days, hours, minutes, seconds
+time reset                        Reset time to current time
+print (or simply hitting enter)   Display satellite location and time of next
+                                  pass
 """
     return
 
@@ -562,8 +563,8 @@ def main():
         with open(TLE_FILE, 'r') as fname:
             tle_string = fname.read()
         lines = tle_string.split('\n')
-        global iss
-        iss = ephem.readtle(SAT_NAME, lines[1], lines[2])
+        global sat
+        sat = ephem.readtle(SAT_NAME, lines[1], lines[2])
     except (IOError, ValueError):
         # there was an error with the file format or the file did not exist
         update_tle()

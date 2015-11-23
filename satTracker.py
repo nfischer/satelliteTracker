@@ -147,7 +147,7 @@ def get_current():
 
 def save_current(full_name, short_name):
     with open(CURRENT_SAT_FILE, 'w') as fname:
-        fname.write('\n'.join([full_name, short_name]))
+        fname.write('\n'.join([full_name, short_name, '']))
 
 def set_grnd():
     """
@@ -265,6 +265,9 @@ def install_program():
     if not os.path.exists(GRND_FILE):
         update_grnd()
 
+    if not os.path.exists(TLE_FILE):
+        update_tle()
+
     if not os.path.exists(CURRENT_SAT_FILE):
         save_current(ISS_FULL_NAME, ISS_NICKNAME)
 
@@ -344,6 +347,7 @@ def output_grnd():
 def output_sat():
     """Prints output for the satellite"""
 
+    sat.compute(grnd)
     s_name = sat.name
     s_long = sat.sublong
     s_lat = sat.sublat
@@ -392,11 +396,12 @@ def set_satellite(full_name, nick_name=''):
     try:
         ret = ephem.readtle(sat_name, my_lines[1], my_lines[2])
         save_current(full_name, nick_name)
-        # with open(CURRENT_SAT_FILE, 'w') as fname:
-        #     fname.write('\n'.join([full_name, nick_name]))
     except:
         raise
-    return ret
+
+    global sat
+    sat = ret
+    global grnd
 
 def output_now():
     """
@@ -426,14 +431,33 @@ def update_tle():
         raise ValueError('Could not update TLE: status was %d' % response.getcode())
     if response.geturl() != TLE_URL:
         raise ValueError('URL was redirected')
-    html_text = response.read() # returns a string
+    raw_text = response.read() # returns a string
+
+    trimmed_lines = [k.strip() for k in raw_text.split('\n')]
+    formatted_text = '\n'.join(trimmed_lines)
 
     # write the data to file
     with open(TLE_FILE, 'w') as fname:
-        fname.write(html_text)
+        fname.write(formatted_text)
 
     return
 
+def all_stations():
+    with open(TLE_FILE, 'r') as fname:
+        lines = fname.read().split('\n')
+    counter = 0
+    ret_lines = list()
+    lines.pop() # take off trailing newline
+    for line in lines:
+        if counter == 0:
+            ret_lines.append(line)
+        elif counter == 2:
+            counter = 0
+            continue
+        counter = counter + 1
+
+    # ret_lines is now all lines containing satellite names
+    return ret_lines
 
 def update_sat():
     """This is the function that updates the satellite object's position info"""
@@ -498,18 +522,10 @@ def matches(str1, str2):
         # empty string should return false always
         return False
 
-    if len1 > len2:
-        # swap them so that str1 is shorter
-        tmp = str2
-        str2 = str1
-        str1 = tmp
-
-    # assume that len1 <= len2
-    str2 = str2[0:len1]
-
-    # if str1 & str2 are str1 match, then return true
-    return str1 == str2
-
+    if len1 < len2:
+        return str1 == str2[0:len1]
+    else:
+        return str2 == str1[0:len2]
 
 def usage():
     """Outputs help info when the user inputs 'help' at the command line"""
@@ -534,7 +550,6 @@ print (or simply hitting enter)   Display satellite location and time of next
 """
     return
 
-
 def prompt():
     """Creates a command line within the program"""
     try:
@@ -557,11 +572,28 @@ def prompt():
             elif matches(key, 'update'):
                 try:
                     update_tle()
-                    print 'Update is complete'
+                    print 'Successfully updated your TLE!'
                 except ValueError:
                     print 'Unable to update TLE'
             elif matches(key, 'grnd') or key == 'ground':
                 output_grnd()
+            elif matches(key, 'choose_station'):
+                if len(key_list) < 2:
+                    print 'Must specify a station to change to'
+                    continue
+                my_sat = ' '.join(key_list[1:])
+                nick_name = None
+                for station in all_stations():
+                    if my_sat == station:
+                        print 'Switching to satellite %s' % station
+                        nick_name = raw_input('Enter a short name: ')
+                        set_satellite(station, nick_name)
+                        break
+                if nick_name is None:
+                    print 'Unable to find a satellite named "%s"' % my_sat
+            elif matches(key, 'liststations'):
+                for k in all_stations():
+                    print k
             elif matches(key, 'now'):
                 output_now()
             elif matches(key, 'change'):
@@ -615,9 +647,8 @@ def main():
 
     # pull the TLE from disc
     try:
-        global sat
         full_name, short_name = get_current()
-        sat = set_satellite(full_name, short_name)
+        set_satellite(full_name, short_name)
     except (IOError, ValueError):
         # there was an error with the file format or the file did not exist
         try:
@@ -627,12 +658,12 @@ def main():
 
         try:
             full_name, short_name = get_current()
-            sat = set_satellite(full_name, short_name)
+            set_satellite(full_name, short_name)
         except ValueError:
             try:
                 full_name = ISS_FULL_NAME
                 short_name = ISS_NICKNAME
-                sat = set_satellite(full_name, short_name)
+                set_satellite(full_name, short_name)
             except:
                 kill_program(1)
 

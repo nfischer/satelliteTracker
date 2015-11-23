@@ -448,13 +448,7 @@ def all_stations():
     counter = 0
     ret_lines = list()
     lines.pop() # take off trailing newline
-    for line in lines:
-        if counter == 0:
-            ret_lines.append(line)
-        elif counter == 2:
-            counter = 0
-            continue
-        counter = counter + 1
+    ret_lines = lines[::3]
 
     # ret_lines is now all lines containing satellite names
     return ret_lines

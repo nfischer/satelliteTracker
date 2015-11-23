@@ -75,9 +75,10 @@ except ImportError:
 
 ## Global 'constants'
 REFRESH_TIME = 1 # in seconds
-SAT_NAME = 'ISS'
 TLE_URL = 'http://www.celestrak.com/NORAD/elements/stations.txt'
 ZERO_TUPLE = (0, 0, 0, 0, 0, 0)
+ISS_FULL_NAME = 'ISS (ZARYA)'
+ISS_NICKNAME = 'ISS'
 
 def get_home_dir():
     """Return the user's home directory"""
@@ -87,6 +88,7 @@ DATA_DIR = os.path.join(get_home_dir(), '.satTracker')
 TLE_FILE = os.path.join(DATA_DIR, 'tles.txt')
 GRND_FILE = os.path.join(DATA_DIR, 'grnd.txt')
 CRON_FILE = os.path.join(DATA_DIR, 'cron.txt')
+CURRENT_SAT_FILE = os.path.join(DATA_DIR, 'current.txt')
 
 ## Colors
 COL_NORMAL = '\033[0m'
@@ -135,6 +137,17 @@ def notify(summary, body='', app_name='', app_icon='',
     interface = dbus.Interface(obj, _interface_name)
     interface.Notify(app_name, replaces_id, app_icon,
                      summary, body, actions, hints, timeout)
+
+def get_current():
+    with open(CURRENT_SAT_FILE, 'r') as fname:
+        vals = fname.read().split('\n')
+        full_name = vals[0]
+        short_name = vals[1]
+    return (full_name, short_name)
+
+def save_current(full_name, short_name):
+    with open(CURRENT_SAT_FILE, 'w') as fname:
+        fname.write('\n'.join([full_name, short_name]))
 
 def set_grnd():
     """
@@ -252,6 +265,9 @@ def install_program():
     if not os.path.exists(GRND_FILE):
         update_grnd()
 
+    if not os.path.exists(CURRENT_SAT_FILE):
+        save_current(ISS_FULL_NAME, ISS_NICKNAME)
+
     return
 
 
@@ -349,13 +365,13 @@ def output_sat():
     print 'transit time:   ' + COL_RED, trans_time, COL_NORMAL
     return
 
-def set_satellite(sat_name):
+def set_satellite(full_name, nick_name=''):
     with open(TLE_FILE, 'r') as fname:
         lines = fname.read().split('\n')
     counter = 0
     my_lines = []
     for line in lines:
-        if matches(sat_name, line):
+        if matches(full_name, line):
             my_lines.append(line)
             counter = 1
         elif counter > 0 and counter < 3:
@@ -366,7 +382,21 @@ def set_satellite(sat_name):
 
     if len(my_lines) != 3:
         raise ValueError('Unable to find satellite')
-    return ephem.readtle(sat_name, my_lines[1], my_lines[2])
+
+    if nick_name != '':
+        sat_name = nick_name
+    else:
+        sat_name = full_name
+    sat_name = full_name if nick_name == '' else nick_name
+
+    try:
+        ret = ephem.readtle(sat_name, my_lines[1], my_lines[2])
+        save_current(full_name, nick_name)
+        # with open(CURRENT_SAT_FILE, 'w') as fname:
+        #     fname.write('\n'.join([full_name, nick_name]))
+    except:
+        raise
+    return ret
 
 def output_now():
     """
@@ -402,11 +432,6 @@ def update_tle():
     with open(TLE_FILE, 'w') as fname:
         fname.write(html_text)
 
-    try:
-        global sat
-        sat = set_satellite(SAT_NAME)
-    except Exception as e:
-        print str(e)
     return
 
 
@@ -581,17 +606,35 @@ def main():
                 print str(e)
                 kill_program(1)
 
+    # read in default satellite to examine
+    try:
+        full_name, short_name = get_current()
+    except (IOError, IndexError):
+        print 'Unable to find your satellite, defaulting to ISS'
+        save_current(ISS_FULL_NAME, ISS_NICKNAME)
+
     # pull the TLE from disc
     try:
         global sat
-        sat = set_satellite(SAT_NAME)
+        full_name, short_name = get_current()
+        sat = set_satellite(full_name, short_name)
     except (IOError, ValueError):
         # there was an error with the file format or the file did not exist
         try:
             update_tle()
         except ValueError as e:
-            print str(e)
             kill_program(1)
+
+        try:
+            full_name, short_name = get_current()
+            sat = set_satellite(full_name, short_name)
+        except ValueError:
+            try:
+                full_name = ISS_FULL_NAME
+                short_name = ISS_NICKNAME
+                sat = set_satellite(full_name, short_name)
+            except:
+                kill_program(1)
 
     ## set up ground station information
     while True:

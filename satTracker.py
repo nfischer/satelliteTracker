@@ -369,7 +369,7 @@ def set_satellite(full_name, nick_name=''):
     with open(TLE_FILE, 'r') as fname:
         lines = fname.read().split('\n')
     counter = 0
-    my_lines = []
+    my_lines = list()
     for line in lines:
         if matches(full_name, line):
             my_lines.append(line)
@@ -540,7 +540,7 @@ def prompt():
     try:
         while 1:
             text = raw_input('\nPress enter to see values, q to quit: ')
-            key_list = []
+            key_list = list()
             key = ''
             if text != '':
                 key_list = text.split()
@@ -606,7 +606,7 @@ def main():
                 print str(e)
                 kill_program(1)
 
-    # read in default satellite to examine
+    # read in last satellite viewed
     try:
         full_name, short_name = get_current()
     except (IOError, IndexError):
@@ -659,14 +659,14 @@ def main():
     # use threading module to spawn new threads
     my_threads = list()
     my_threads.append(threading.Thread(target=update_sat))
-    my_threads.append(threading.Thread(target=cron_daemon))
+    # my_threads.append(threading.Thread(target=cron_daemon))
     my_threads.append(threading.Thread(target=prompt))
     my_threads[0].daemon = True # run this thread in the background
-    my_threads[1].daemon = True # run this thread in the background
-    my_threads[2].daemon = False
+    # my_threads[1].daemon = True # run this thread in the background
+    my_threads[1].daemon = False
     my_threads[0].start()
     my_threads[1].start()
-    my_threads[2].start()
+    # my_threads[2].start()
 
     for thread in my_threads:
         while thread.isAlive():

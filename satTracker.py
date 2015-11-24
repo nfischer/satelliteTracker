@@ -80,11 +80,14 @@ ZERO_TUPLE = (0, 0, 0, 0, 0, 0)
 ISS_FULL_NAME = 'ISS (ZARYA)'
 ISS_NICKNAME = 'ISS'
 
-def get_home_dir():
-    """Return the user's home directory"""
-    return os.path.expanduser('~')
+def clear_screen():
+    """Utility to clear the terminal screen"""
+    if os.name == 'posix':
+        os.system('clear')
+    else:
+        os.system('cls')
 
-DATA_DIR = os.path.join(get_home_dir(), '.satTracker')
+DATA_DIR = os.path.join(os.path.expanduser('~'), '.satTracker')
 TLE_FILE = os.path.join(DATA_DIR, 'tles.txt')
 GRND_FILE = os.path.join(DATA_DIR, 'grnd.txt')
 CRON_FILE = os.path.join(DATA_DIR, 'cron.txt')
@@ -139,6 +142,7 @@ def notify(summary, body='', app_name='', app_icon='',
                      summary, body, actions, hints, timeout)
 
 def get_current():
+    """Load the most recently tracked satellite into memory"""
     with open(CURRENT_SAT_FILE, 'r') as fname:
         vals = fname.read().split('\n')
         full_name = vals[0]
@@ -146,39 +150,35 @@ def get_current():
     return (full_name, short_name)
 
 def save_current(full_name, short_name):
+    """Save the currently tracked satellite into persistent storage"""
     with open(CURRENT_SAT_FILE, 'w') as fname:
         fname.write('\n'.join([full_name, short_name, '']))
 
 def set_grnd():
-    """
-    This sets the grnd global variable
-    """
+    """This sets the grnd global variable from persistent storage"""
     try:
         with open(GRND_FILE, 'r') as fname:
-            grnd_string = fname.read()
-        lines = grnd_string.split('\n')
+            lines = fname.read().split('\n')
         global grnd
         grnd = ephem.Observer()
         g_long = float(lines[0])
         g_lat = float(lines[1])
         g_elev = float(lines[2])
+    except (IOError, IndexError, ValueError):
+        raise ValueError('Improperly formatted ground file')
 
-        # Check for invalid values
-        deg180 = 180 * ephem.degree
-        deg90 = 90 * ephem.degree
-        if g_long > deg180 or g_long < -1 * deg180:
-            return 1
-        if g_lat > deg90 or g_lat < -1 * deg90:
-            return 1
-        if g_elev < 0 or g_elev > 8848: # height of Mt. Everest
-            return 1
-        grnd.long = g_long
-        grnd.lat = g_lat
-        grnd.elev = g_elev
-        return 0
-    except:
-        # Error, so we need to rewrite grnd file
-        return 2
+    # Check for invalid values
+    deg180 = 180 * ephem.degree
+    deg90 = 90 * ephem.degree
+    if g_long > deg180 or g_long < -1 * deg180:
+        raise ValueError('Invalid longitude')
+    if g_lat > deg90 or g_lat < -1 * deg90:
+        raise ValueError('Invalid latitude')
+    if g_elev < 0 or g_elev > 8848: # height of Mt. Everest
+        raise ValueError('Invalid elevation')
+    grnd.long = g_long
+    grnd.lat = g_lat
+    grnd.elev = g_elev
 
 def update_grnd():
     """This allows users to change the ground station information"""
@@ -562,7 +562,7 @@ def prompt():
             elif matches(key, 'help') or key == '--help':
                 usage()
             elif matches(key, 'clear') or key == 'cls':
-                os.system('clear')
+                clear_screen()
             elif matches(key, 'update'):
                 try:
                     update_tle()
@@ -592,11 +592,11 @@ def prompt():
                 output_now()
             elif matches(key, 'change'):
                 update_grnd()
-                ret = set_grnd()
-                if ret == 0:
+                try:
+                    set_grnd()
                     print 'Your update of ground station info is complete.'
                     output_grnd()
-                else:
+                except ValueError:
                     print 'It appears there was an error with your grnd values.'
                     kill_program(1)
             elif matches(key, 'time'):
@@ -662,16 +662,19 @@ def main():
                 kill_program(1)
 
     ## set up ground station information
-    while True:
-        ret = set_grnd()
-        if ret == 0:
-            break
-        else:
-            # there was an error with the file format or the file did not exist
-            msg = (COL_RED + 'Error with ground file.' + COL_NORMAL +
-                   'Please update it with valid information.')
-            print msg
-            update_grnd()
+    try:
+        set_grnd()
+    except ValueError:
+        # there was an error with the file format or the file did not exist
+        msg = (COL_RED + 'Error with ground file. ' + COL_NORMAL +
+               'Please update it with valid information.')
+        print msg
+        update_grnd()
+        try:
+            set_grnd()
+        except:
+            print 'Unable to load valid ground information'
+            exit(1)
 
     # set time
     global p_time
@@ -689,21 +692,11 @@ def main():
     my_threads[0].daemon = True # run this thread in the background
     # my_threads[1].daemon = True # run this thread in the background
     my_threads[1].daemon = False
-    my_threads[0].start()
-    my_threads[1].start()
-    # my_threads[2].start()
-
     for thread in my_threads:
-        while thread.isAlive():
-            thread.join(2)
+        thread.start()
 
-    try:
-        while 1:
-            pass
-        kill_program(0)
-    except:
-        kill_program(0)
-
+    while True:
+        time.sleep(100)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

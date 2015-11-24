@@ -105,11 +105,11 @@ COL_CYAN = '\033[96m'
 COL_WHITE = '\033[97m'
 
 ## Global variables
-# grnd
-# sat
-# displacement
-# is_frozen
-# p_time
+grnd = None
+sat = None
+displacement = None
+is_frozen = None
+p_time = None
 
 #######################################
 ## Functions
@@ -209,26 +209,20 @@ def update_grnd():
     except ValueError:
         u_elev = default_elev
 
-
-
     # check validity of values & their types
     if u_elev < 0:
         u_elev = default_elev
-
 
     # convert to radians
     u_long = u_long * ephem.degree
     u_lat = u_lat * ephem.degree
 
     # write values to file
-    values = [str(u_long), str(u_lat), str(u_elev), '']
-    grnd_string = '\n'.join(values)
-
+    grnd_str = '\n'.join([str(u_long), str(u_lat), str(u_elev), ''])
     with open(GRND_FILE, 'w') as fname:
-        fname.write(grnd_string)
+        fname.write(grnd_str)
 
     return
-
 
 def install_program():
     """

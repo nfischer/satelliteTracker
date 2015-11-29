@@ -260,7 +260,11 @@ def install_program():
         update_grnd()
 
     if not os.path.exists(TLE_FILE):
-        update_tle()
+        try:
+            update_tle()
+        except ValueError:
+            print 'Unable to download a TLE. Check your network connection'
+            exit(1)
 
     if not os.path.exists(CURRENT_SAT_FILE):
         save_current(ISS_FULL_NAME, ISS_NICKNAME)
@@ -419,7 +423,7 @@ def update_tle():
     try:
         response = urllib2.urlopen(TLE_URL)
     except (ValueError, urllib2.URLError) as e:
-        raise ValueError('Could not update TLE: %s' % str(e))
+        raise ValueError('Could not update TLE')
 
     if response.getcode() != 200:
         raise ValueError('Could not update TLE: status was %d' % response.getcode())
@@ -562,7 +566,7 @@ def prompt():
                     update_tle()
                     print 'Successfully updated your TLE!'
                 except ValueError:
-                    print 'Unable to update TLE'
+                    print 'Unable to update TLE. Check your network connection'
             elif matches(key, 'grnd') or key == 'ground':
                 output_grnd()
             elif matches(key, 'choose_station'):
@@ -622,9 +626,8 @@ def main():
         if resp == 'y':
             try:
                 update_tle()
-            except ValueError as e:
-                print str(e)
-                kill_program(1)
+            except ValueError:
+                print 'Unable to update TLE. Continuing anyway with old values'
 
     # read in last satellite viewed
     try:

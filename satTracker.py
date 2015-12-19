@@ -6,13 +6,16 @@
 #######################################
 
 import datetime
-import dbus
 import os
 import signal
 import sys
 import threading
 import time
 import urllib2
+try:
+    import dbus
+except ImportError:
+    print 'Warning: could not import dbus module'
 
 
 def handle_dependencies():
@@ -25,6 +28,9 @@ def handle_dependencies():
     sudo apt-get install python-dev
     sudo pip install pyephem
     """
+
+    # Brew may be the necessary form of installation, depending on which install
+    # of python is used
     mac_install = """
     sudo easy_install pip
     sudo pip install pyephem
@@ -125,7 +131,7 @@ def kill_program(status):
     # kills main & all daemon threads
     os._exit(status)
 
-def sig_handler(signumber, frame):
+def sig_handler(_signumber, _frame):
     kill_program(0)
 
 def notify(summary, body='', app_name='', app_icon='',
@@ -262,7 +268,7 @@ def install_program():
     if not os.path.exists(TLE_FILE):
         try:
             update_tle()
-        except ValueError:
+        except (ValueError, urllib2.URLError):
             print 'Unable to download a TLE. Check your network connection'
             exit(1)
 
@@ -353,9 +359,8 @@ def output_sat():
     s_alt = sat.alt
     s_elev = sat.elevation
     pass_tuple = grnd.next_pass(sat)
-    time_of_pass = ephem.localtime(pass_tuple[0])
-    set_time = ephem.localtime(pass_tuple[2])
-    trans_time = pass_tuple[4]
+    time_of_pass = ephem.localtime(pass_tuple[0]).replace(microsecond=0)
+    set_time = ephem.localtime(pass_tuple[4]).replace(microsecond=0)
     print s_name
     print 'long:', COL_GREEN, s_long, COL_NORMAL
     print 'lat: ', COL_GREEN, s_lat, COL_NORMAL
@@ -364,7 +369,6 @@ def output_sat():
     print 'elevation:', s_elev
     print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + 'local time'
     print 'end time:   ' + COL_YELLOW, set_time, COL_NORMAL
-    print 'transit time:   ' + COL_RED, trans_time, COL_NORMAL
     return
 
 def set_satellite(full_name, nick_name=''):
@@ -391,11 +395,9 @@ def set_satellite(full_name, nick_name=''):
         sat_name = full_name
     sat_name = full_name if nick_name == '' else nick_name
 
-    try:
-        ret = ephem.readtle(sat_name, my_lines[1], my_lines[2])
-        save_current(full_name, nick_name)
-    except:
-        raise
+    # May throw an exception
+    ret = ephem.readtle(sat_name, my_lines[1], my_lines[2])
+    save_current(full_name, nick_name)
 
     global sat
     sat = ret
@@ -408,7 +410,7 @@ def output_now():
     time forward or backward
     """
     e_time = ephem.Date(p_time)
-    l_time = ephem.localtime(e_time)
+    l_time = ephem.localtime(e_time).replace(microsecond=0)
     cti = 'Current time is'+COL_YELLOW
     print cti, e_time, COL_NORMAL + 'UTC'
     print cti, l_time, COL_NORMAL + 'local time'
@@ -417,13 +419,14 @@ def output_now():
 def update_tle():
     """
     Updates the program's TLEs for satellites
+
+    @throws ValueError, urllib2.URLError
     """
 
     # fetch the raw data
-    try:
-        response = urllib2.urlopen(TLE_URL)
-    except (ValueError, urllib2.URLError) as e:
-        raise ValueError('Could not update TLE')
+
+    # May throw ValueError or urllib2.URLError
+    response = urllib2.urlopen(TLE_URL)
 
     if response.getcode() != 200:
         raise ValueError('Could not update TLE: status was %d' % response.getcode())
@@ -431,8 +434,7 @@ def update_tle():
         raise ValueError('URL was redirected')
     raw_text = response.read() # returns a string
 
-    trimmed_lines = [k.strip() for k in raw_text.split('\n')]
-    formatted_text = '\n'.join(trimmed_lines)
+    formatted_text = '\n'.join([k.strip() for k in raw_text.split('\n')])
 
     # write the data to file
     with open(TLE_FILE, 'w') as fname:
@@ -441,12 +443,12 @@ def update_tle():
     return
 
 def all_stations():
+    """Returns a list of all known space stations"""
     with open(TLE_FILE, 'r') as fname:
         lines = fname.read().split('\n')
-    counter = 0
     ret_lines = list()
-    lines.pop() # take off trailing newline
-    ret_lines = lines[::3]
+    lines.pop() # Take off trailing newline
+    ret_lines = lines[::3] # Every third line
 
     # ret_lines is now all lines containing satellite names
     return ret_lines
@@ -481,26 +483,22 @@ def update_sat():
     except:
         exit(0)
 
-def cron_daemon():
-    """
-    This loads all saved cron jobs, checks if jobs needs to be run, and then
-    waits to run jobs when their deadline comes
-    """
-    # Load in cron jobs from disk
-    if os.path.exists(CRON_FILE):
-        with open(CRON_FILE, 'r') as fname:
-            job_text = fname.read()
-        my_jobs = job_text.split('\n')
-    # print 'Jobs are loaded'
-
-    # Loop for new jobs
-    while True:
-        # Check jobs
-
-        # Sleep
-        time.sleep(1)
-
-    return
+# def cron_daemon():
+#     """
+#     This loads all saved cron jobs, checks if jobs needs to be run, and then
+#     waits to run jobs when their deadline comes
+#     """
+#     # Load in cron jobs from disk
+#     if os.path.exists(CRON_FILE):
+#         with open(CRON_FILE, 'r') as fname:
+#             job_text = fname.read()
+#         my_jobs = job_text.split('\n')
+#     # print 'Jobs are loaded'
+#     # Loop for new jobs
+#     while True:
+#         # Check jobs
+#         time.sleep(1)
+#     return
 
 def matches(str1, str2):
     """
@@ -563,9 +561,10 @@ def prompt():
                 clear_screen()
             elif matches(key, 'update'):
                 try:
+                    print 'Updating your TLE...'
                     update_tle()
                     print 'Successfully updated your TLE!'
-                except ValueError:
+                except (ValueError, urllib2.URLError):
                     print 'Unable to update TLE. Check your network connection'
             elif matches(key, 'grnd') or key == 'ground':
                 output_grnd()
@@ -616,9 +615,9 @@ def main():
 
     ## initialize satellite info
     stamp = datetime.datetime.fromtimestamp(os.stat(TLE_FILE)[8])
-    stamp = stamp + datetime.timedelta(days=3)
+    delta = datetime.timedelta(days=3)
 
-    if datetime.datetime.now() > stamp:
+    if datetime.datetime.now() > (stamp + delta):
         # TLE is old
         msg = ('Your TLE is getting a little stale. Would you like to update '
                'it? (y/n) ')
@@ -626,7 +625,7 @@ def main():
         if resp == 'y':
             try:
                 update_tle()
-            except ValueError:
+            except (ValueError, urllib2.URLError):
                 print 'Unable to update TLE. Continuing anyway with old values'
 
     # read in last satellite viewed
@@ -644,7 +643,7 @@ def main():
         # there was an error with the file format or the file did not exist
         try:
             update_tle()
-        except ValueError as e:
+        except (ValueError, urllib2.URLError):
             kill_program(1)
 
         try:

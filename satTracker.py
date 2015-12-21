@@ -537,6 +537,9 @@ time [YMDhms] <int>               Increase or decrease time by <int> Years,
 time reset                        Reset time to current time
 print (or simply hitting enter)   Display satellite location and time of next
                                   pass
+list_stations                     Display the station list
+choose_station <satellite-name>   Change the station to a different space
+                                  station in the station list
 """
     return
 
@@ -582,7 +585,7 @@ def prompt():
                         break
                 if nick_name is None:
                     print 'Unable to find a satellite named "%s"' % my_sat
-            elif matches(key, 'liststations'):
+            elif matches(key, 'list_stations'):
                 for k in all_stations():
                     print k
             elif matches(key, 'now'):

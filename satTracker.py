@@ -20,7 +20,7 @@ except ImportError:
 
 class Ground(object):
     """Wrapper class for the pyephem ground observer object"""
-    def __init__(self, longitude, latitude, elevation):
+    def __init__(self, longitude, latitude, elevation, offset=0):
         self.observer = ephem.Observer()
         deg180 = 180 * ephem.degree
         deg90 = 90 * ephem.degree
@@ -35,7 +35,8 @@ class Ground(object):
         deg_long = longitude / ephem.degree
         deg_lat = latitude / ephem.degree
         self.ssc = SunriseSunset(dt=datetime.datetime.now(),
-                                 longitude=deg_long, latitude=deg_lat)
+                                 longitude=deg_long, latitude=deg_lat,
+                                 localOffset=offset)
         self.observer.long = longitude
         self.observer.lat = latitude
         self.observer.elev = elevation
@@ -48,6 +49,9 @@ class Ground(object):
     def elevation(self):
         return self.observer.elev
 
+    def set_date(self, date):
+        self.observer.date = date
+
     def next_pass(self, sat):
         """Wrapper for next_pass() method"""
         return self.observer.next_pass(sat)
@@ -57,7 +61,10 @@ class Ground(object):
         Wrapper for calculate() method.
         @param: arg can be passed on to the calculate() method
         """
-        return self.ssc.calculate()
+        if arg is None:
+            return self.ssc.calculate()
+        else:
+            return self.ssc.calculate(arg)
 
 def handle_dependencies():
     """Installs dependencies for the project (related to self-installer)"""
@@ -209,11 +216,12 @@ def set_grnd():
         g_long = float(lines[0])
         g_lat = float(lines[1])
         g_elev = float(lines[2])
+        offset = float(lines[3])
     except (IOError, IndexError, ValueError):
         raise ValueError('Improperly formatted ground file')
 
     global grnd
-    grnd = Ground(g_long, g_lat, g_elev)
+    grnd = Ground(g_long, g_lat, g_elev, offset)
 
 def update_grnd():
     """This allows users to change the ground station information"""
@@ -223,10 +231,12 @@ def update_grnd():
     u_long = raw_input('Longitude (degrees): ')
     u_lat = raw_input('Latitude (degrees): ')
     u_elev = raw_input('Elevation (m): ')
+    u_tzn  = raw_input('Timezone offset: ')
 
     default_long = -118.45
     default_lat = 34.0665
     default_elev = 95.0
+    default_tzn = -8
 
     # set values
     try:
@@ -248,12 +258,18 @@ def update_grnd():
     if u_elev < 0:
         u_elev = default_elev
 
+    try:
+        u_tzn = float(u_tzn)
+    except ValueError:
+        u_tzn = default_tzn
+
     # convert to radians
     u_long = u_long * ephem.degree
     u_lat = u_lat * ephem.degree
 
     # write values to file
-    grnd_str = '\n'.join([str(u_long), str(u_lat), str(u_elev), ''])
+    grnd_str = '\n'.join([str(u_long), str(u_lat), str(u_elev), str(u_tzn), ''])
+    print grnd_str
     with open(GRND_FILE, 'w') as fname:
         fname.write(grnd_str)
 
@@ -378,7 +394,7 @@ def output_grnd():
 def output_sat():
     """Prints output for the satellite"""
 
-    sat.compute(grnd.observer)
+    # sat.compute(grnd.observer)
     s_name = sat.name
     s_long = sat.sublong
     s_lat = sat.sublat
@@ -389,9 +405,13 @@ def output_sat():
         pass_tuple = grnd.next_pass(sat)
         time_of_pass = ephem.localtime(pass_tuple[0]).replace(microsecond=0)
         set_time = ephem.localtime(pass_tuple[4]).replace(microsecond=0)
+        rise_dt, set_dt = grnd.sunrise_sunset(time_of_pass)
+        night_time = (time_of_pass < rise_dt or time_of_pass > set_dt)
+        print rise_dt, set_dt
     except ValueError:
         time_of_pass = None
         set_time = None
+        night_time = False
     print s_name
     print 'long:', COL_GREEN, s_long, COL_NORMAL
     print 'lat: ', COL_GREEN, s_lat, COL_NORMAL
@@ -399,7 +419,8 @@ def output_sat():
     print 'altitude:', s_alt
     print 'elevation:', s_elev
     if time_of_pass is not None:
-        print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + 'local time'
+        suffix = 'local time ' + ('(night)' if night_time else '(day time)')
+        print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + suffix
         print 'end time:   ' + COL_YELLOW, set_time, COL_NORMAL
     else:
         print COL_PURPLE + 'This satellite will never pass' + COL_NORMAL
@@ -442,8 +463,8 @@ def output_now():
     e_time = ephem.Date(p_time)
     l_time = ephem.localtime(e_time).replace(microsecond=0)
     cti = 'Current time is'+COL_YELLOW
-    print cti, e_time, COL_NORMAL + 'UTC'
     print cti, l_time, COL_NORMAL + 'local time'
+    print cti, e_time, COL_NORMAL + 'UTC'
     return
 
 def update_tle():
@@ -490,8 +511,9 @@ def update_sat():
                 now = ephem.now().tuple()
                 global p_time
                 p_time = tuple(sum(k) for k in zip(now, displacement))
-                grnd.date = p_time
+                grnd.set_date(p_time)
 
+            global sat
             sat.compute(grnd.observer)
             try:
                 my_pass_tuple = grnd.next_pass(sat)

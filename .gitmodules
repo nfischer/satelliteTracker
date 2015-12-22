@@ -1,0 +1,3 @@
+[submodule "SunriseSunsetCalculator"]
+	path = SunriseSunsetCalculator
+	url = https://github.com/jebeaudet/SunriseSunsetCalculator.git

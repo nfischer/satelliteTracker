@@ -12,11 +12,52 @@ import sys
 import threading
 import time
 import urllib2
+from SunriseSunsetCalculator.sunrise_sunset import SunriseSunset
 try:
     import dbus
 except ImportError:
     print 'Warning: could not import dbus module'
 
+class Ground(object):
+    """Wrapper class for the pyephem ground observer object"""
+    def __init__(self, longitude, latitude, elevation):
+        self.observer = ephem.Observer()
+        deg180 = 180 * ephem.degree
+        deg90 = 90 * ephem.degree
+        if longitude > deg180 or longitude < -1 * deg180:
+            raise ValueError('Invalid longitude')
+        if latitude > deg90 or latitude < -1 * deg90:
+            raise ValueError('Invalid latitude')
+        if elevation < 0 or elevation > 8848: # height of Mt. Everest
+            raise ValueError('Invalid elevation')
+
+        # Set the SunriseSunset object
+        deg_long = longitude / ephem.degree
+        deg_lat = latitude / ephem.degree
+        self.ssc = SunriseSunset(dt=datetime.datetime.now(),
+                                 longitude=deg_long, latitude=deg_lat)
+        self.observer.long = longitude
+        self.observer.lat = latitude
+        self.observer.elev = elevation
+
+    # Accessors
+    def longitude(self):
+        return self.observer.long
+    def latitude(self):
+        return self.observer.lat
+    def elevation(self):
+        return self.observer.elev
+
+    def next_pass(self, sat):
+        """Wrapper for next_pass() method"""
+        return self.observer.next_pass(sat)
+
+    def sunrise_sunset(self, arg=None):
+        """
+        Wrapper for calculate() method.
+        @param: arg can be passed on to the calculate() method
+        """
+        return self.ssc.calculate()
 
 def handle_dependencies():
     """Installs dependencies for the project (related to self-installer)"""
@@ -165,26 +206,14 @@ def set_grnd():
     try:
         with open(GRND_FILE, 'r') as fname:
             lines = fname.read().split('\n')
-        global grnd
-        grnd = ephem.Observer()
         g_long = float(lines[0])
         g_lat = float(lines[1])
         g_elev = float(lines[2])
     except (IOError, IndexError, ValueError):
         raise ValueError('Improperly formatted ground file')
 
-    # Check for invalid values
-    deg180 = 180 * ephem.degree
-    deg90 = 90 * ephem.degree
-    if g_long > deg180 or g_long < -1 * deg180:
-        raise ValueError('Invalid longitude')
-    if g_lat > deg90 or g_lat < -1 * deg90:
-        raise ValueError('Invalid latitude')
-    if g_elev < 0 or g_elev > 8848: # height of Mt. Everest
-        raise ValueError('Invalid elevation')
-    grnd.long = g_long
-    grnd.lat = g_lat
-    grnd.elev = g_elev
+    global grnd
+    grnd = Ground(g_long, g_lat, g_elev)
 
 def update_grnd():
     """This allows users to change the ground station information"""
@@ -288,25 +317,25 @@ def handle_time(argv):
     """Adjusts time forward, backward, or resets it to current time"""
     argc = len(argv)
     adjuster = ZERO_TUPLE
-    if argc > 1:
+    fst = argv[1]
+    if argc == 2:
         # check for single-argument commands
-        fst = argv[1]
         if matches(fst, 'reset'):
-            print 'Time is reset to now'
+            print "Time is reset to 'now'"
             global displacement
             displacement = ZERO_TUPLE
             global is_frozen
             is_frozen = False
-            return
-        if matches(fst, 'freeze') or matches(fst, 'frozen'):
-            print "Time is now frozen. Use 'unfreeze' to undo this."
+        elif matches(fst, 'freeze') or matches(fst, 'frozen'):
             is_frozen = True
-            return
-        if matches(fst, 'unfreeze'):
-            print 'Time is now unfrozen.'
+            print "Time is now frozen. Use 'time unfreeze' to undo this."
+        elif matches(fst, 'unfreeze'):
             is_frozen = False
-            return
-    if argc > 2:
+            print 'Time is now unfrozen.'
+        else:
+            print "Unknown time argument '%s'" % fst
+        return
+    elif argc > 2:
         scnd = argv[2]
         try:
             scnd = int(scnd)
@@ -316,59 +345,64 @@ def handle_time(argv):
         adj_list = list(adjuster)
         if matches(fst, 'Year') or matches(fst, 'year'):
             adj_list[0] = scnd
-        if matches(fst, 'Month'):
+        elif matches(fst, 'Month'):
             adj_list[1] = scnd
-        if matches(fst, 'Day') or matches(fst, 'day'):
+        elif matches(fst, 'Day') or matches(fst, 'day'):
             adj_list[2] = scnd
-        if matches(fst, 'hour') or matches(fst, 'Hour'):
+        elif matches(fst, 'hour') or matches(fst, 'Hour'):
             adj_list[3] = scnd
-        if matches(fst, 'minute'):
+        elif matches(fst, 'minute'):
             adj_list[4] = scnd
-        if matches(fst, 'second') or matches(fst, 'Second'):
+        elif matches(fst, 'second') or matches(fst, 'Second'):
             adj_list[5] = scnd
 
         adjuster = tuple(adj_list)
 
     # now adjust displacement
-    adjuster = tuple(sum(k) for k in zip(displacement, adjuster))
-
-    displacement = adjuster
+    displacement = tuple(sum(k) for k in zip(displacement, adjuster))
     return
 
 
 def output_grnd():
     """Prints output for user's groundstation"""
-    g_long = grnd.long
-    g_lat = grnd.lat
-    g_elev = grnd.elev
+    g_long = grnd.longitude()
+    g_lat = grnd.latitude()
+    g_elev = grnd.elevation()
 
     print 'Printing info for your ground observer:'
-    print 'long:', COL_BLUE, g_long, COL_NORMAL
-    print 'lat: ', COL_BLUE, g_lat, COL_NORMAL
+    print 'long:' + COL_BLUE, g_long, COL_NORMAL
+    print 'lat: ' + COL_BLUE, g_lat, COL_NORMAL
     print 'elev:', g_elev
     return
 
 def output_sat():
     """Prints output for the satellite"""
 
-    sat.compute(grnd)
+    sat.compute(grnd.observer)
     s_name = sat.name
     s_long = sat.sublong
     s_lat = sat.sublat
     s_az = sat.az
     s_alt = sat.alt
     s_elev = sat.elevation
-    pass_tuple = grnd.next_pass(sat)
-    time_of_pass = ephem.localtime(pass_tuple[0]).replace(microsecond=0)
-    set_time = ephem.localtime(pass_tuple[4]).replace(microsecond=0)
+    try:
+        pass_tuple = grnd.next_pass(sat)
+        time_of_pass = ephem.localtime(pass_tuple[0]).replace(microsecond=0)
+        set_time = ephem.localtime(pass_tuple[4]).replace(microsecond=0)
+    except ValueError:
+        time_of_pass = None
+        set_time = None
     print s_name
     print 'long:', COL_GREEN, s_long, COL_NORMAL
     print 'lat: ', COL_GREEN, s_lat, COL_NORMAL
     print 'azimuth:', s_az
     print 'altitude:', s_alt
     print 'elevation:', s_elev
-    print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + 'local time'
-    print 'end time:   ' + COL_YELLOW, set_time, COL_NORMAL
+    if time_of_pass is not None:
+        print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + 'local time'
+        print 'end time:   ' + COL_YELLOW, set_time, COL_NORMAL
+    else:
+        print COL_PURPLE + 'This satellite will never pass' + COL_NORMAL
     return
 
 def set_satellite(full_name, nick_name=''):
@@ -389,10 +423,6 @@ def set_satellite(full_name, nick_name=''):
     if len(my_lines) != 3:
         raise ValueError('Unable to find satellite')
 
-    if nick_name != '':
-        sat_name = nick_name
-    else:
-        sat_name = full_name
     sat_name = full_name if nick_name == '' else nick_name
 
     # May throw an exception
@@ -434,12 +464,10 @@ def update_tle():
         raise ValueError('URL was redirected')
     raw_text = response.read() # returns a string
 
-    formatted_text = '\n'.join([k.strip() for k in raw_text.split('\n')])
-
     # write the data to file
+    formatted_text = '\n'.join([k.strip() for k in raw_text.split('\n')])
     with open(TLE_FILE, 'w') as fname:
         fname.write(formatted_text)
-
     return
 
 def all_stations():
@@ -464,24 +492,30 @@ def update_sat():
                 p_time = tuple(sum(k) for k in zip(now, displacement))
                 grnd.date = p_time
 
-            sat.compute(grnd)
-            my_pass_tuple = grnd.next_pass(sat)
-            start_time = ephem.localtime(my_pass_tuple[0])
-            end_time = ephem.localtime(my_pass_tuple[2])
-            if start_time > end_time and has_shown_pass == 0:
-                # This can only happen if we're in a pass right now
-                msg_string = sat.name + ' is currently passing overhead'
-                try:
-                    notify(msg_string)
-                except dbus.DBusException:
-                    print msg_string
-                has_shown_pass = 1
-            elif start_time < end_time and has_shown_pass == 1:
-                has_shown_pass = 0
+            sat.compute(grnd.observer)
+            try:
+                my_pass_tuple = grnd.next_pass(sat)
+                start_time = ephem.localtime(my_pass_tuple[0])
+                end_time = ephem.localtime(my_pass_tuple[4])
+                if start_time > end_time and has_shown_pass == 0:
+                    # This can only happen if we're in a pass right now
+                    msg_string = sat.name + ' is currently passing overhead'
+                    try:
+                        notify(msg_string)
+                    except dbus.DBusException:
+                        print msg_string
+                    has_shown_pass = 1
+                elif start_time < end_time and has_shown_pass == 1:
+                    has_shown_pass = 0
+            except ValueError:
+                # satellite is always below the horizon
+                pass
 
             time.sleep(REFRESH_TIME)
-    except:
-        exit(0)
+    except Exception as e:
+        print type(e)
+        print e
+        kill_program(1)
 
 # def cron_daemon():
 #     """
@@ -604,8 +638,10 @@ def prompt():
 
             else:
                 output_sat()
-    except:
-        exit(0)
+    except Exception as e:
+        print type(e)
+        print e
+        kill_program(1)
 
 
 

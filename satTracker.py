@@ -385,7 +385,6 @@ def output_grnd():
 def output_sat():
     """Prints output for the satellite"""
 
-    # sat.compute(grnd.observer)
     s_name = sat.name
     s_long = sat.sublong
     s_lat = sat.sublat
@@ -398,7 +397,6 @@ def output_sat():
         set_time = ephem.localtime(pass_tuple[4]).replace(microsecond=0)
         rise_dt, set_dt = grnd.sunrise_sunset(time_of_pass)
         night_time = (time_of_pass < rise_dt or time_of_pass > set_dt)
-        print rise_dt, set_dt
     except ValueError:
         time_of_pass = None
         set_time = None

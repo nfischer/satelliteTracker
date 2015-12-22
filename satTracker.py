@@ -130,7 +130,6 @@ except ImportError:
 ## Global 'constants'
 REFRESH_TIME = 1 # in seconds
 TLE_URL = 'http://www.celestrak.com/NORAD/elements/stations.txt'
-ZERO_TUPLE = (0, 0, 0, 0, 0, 0)
 ISS_FULL_NAME = 'ISS (ZARYA)'
 ISS_NICKNAME = 'ISS'
 
@@ -332,14 +331,13 @@ def is_installed():
 def handle_time(argv):
     """Adjusts time forward, backward, or resets it to current time"""
     argc = len(argv)
-    adjuster = ZERO_TUPLE
     fst = argv[1]
     if argc == 2:
         # check for single-argument commands
         if matches(fst, 'reset'):
             print "Time is reset to 'now'"
             global displacement
-            displacement = ZERO_TUPLE
+            displacement = datetime.timedelta()
             global is_frozen
             is_frozen = False
         elif matches(fst, 'freeze') or matches(fst, 'frozen'):
@@ -358,24 +356,17 @@ def handle_time(argv):
         except ValueError:
             return
 
-        adj_list = list(adjuster)
-        if matches(fst, 'Year') or matches(fst, 'year'):
-            adj_list[0] = scnd
-        elif matches(fst, 'Month'):
-            adj_list[1] = scnd
-        elif matches(fst, 'Day') or matches(fst, 'day'):
-            adj_list[2] = scnd
+        if matches(fst, 'Day') or matches(fst, 'day'):
+            adjuster = datetime.timedelta(days=scnd)
         elif matches(fst, 'hour') or matches(fst, 'Hour'):
-            adj_list[3] = scnd
-        elif matches(fst, 'minute'):
-            adj_list[4] = scnd
+            adjuster = datetime.timedelta(hours=scnd)
+        elif matches(fst, 'minute') or matches(fst, 'Minute'):
+            adjuster = datetime.timedelta(minutes=scnd)
         elif matches(fst, 'second') or matches(fst, 'Second'):
-            adj_list[5] = scnd
+            adjuster = datetime.timedelta(seconds=scnd)
 
-        adjuster = tuple(adj_list)
-
-    # now adjust displacement
-    displacement = tuple(sum(k) for k in zip(displacement, adjuster))
+        # now adjust displacement
+        displacement = displacement + adjuster
     return
 
 
@@ -505,12 +496,11 @@ def all_stations():
 def update_sat():
     """This is the function that updates the satellite object's position info"""
     try:
-        has_shown_pass = 0
+        has_shown_pass = False
         while 1:
             if is_frozen == False:
-                now = ephem.now().tuple()
                 global p_time
-                p_time = tuple(sum(k) for k in zip(now, displacement))
+                p_time = datetime.datetime.utcnow() + displacement
                 grnd.set_date(p_time)
 
             global sat
@@ -519,16 +509,16 @@ def update_sat():
                 my_pass_tuple = grnd.next_pass(sat)
                 start_time = ephem.localtime(my_pass_tuple[0])
                 end_time = ephem.localtime(my_pass_tuple[4])
-                if start_time > end_time and has_shown_pass == 0:
+                if start_time > end_time and (not has_shown_pass):
                     # This can only happen if we're in a pass right now
                     msg_string = sat.name + ' is currently passing overhead'
                     try:
                         notify(msg_string)
                     except dbus.DBusException:
                         print msg_string
-                    has_shown_pass = 1
-                elif start_time < end_time and has_shown_pass == 1:
-                    has_shown_pass = 0
+                    has_shown_pass = True
+                elif start_time < end_time and has_shown_pass:
+                    has_shown_pass = False
             except ValueError:
                 # satellite is always below the horizon
                 pass
@@ -588,8 +578,8 @@ update                            Update the satellites TLE
 grnd, ground                      Display ground station information
 now                               Display the current time in UTC
 change                            Enter new ground station information
-time [YMDhms] <int>               Increase or decrease time by <int> Years,
-                                  Months, Days, hours, minutes, seconds
+time [dhms] <int>                 Increase or decrease time by <int> days,
+                                  hours, minutes, or seconds
 time reset                        Reset time to current time
 print (or simply hitting enter)   Display satellite location and time of next
                                   pass
@@ -735,9 +725,9 @@ def main():
 
     # set time
     global p_time
-    p_time = ephem.now().tuple()
+    p_time = datetime.datetime.utcnow()
     global displacement
-    displacement = ZERO_TUPLE
+    displacement = datetime.timedelta() # initialize to zero
     global is_frozen
     is_frozen = False
 

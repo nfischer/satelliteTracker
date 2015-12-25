@@ -71,22 +71,27 @@ SatelliteTracker can:
 How does it work?
 -----------------
 
-This project is made using the pyephem module. To run this script, you will
-need to first install this module. If you're unsure, try to run the script
-and it will give you a guide on how to install it.
+This project is made using the pyephem module to do the cool computations for
+longitude, latitude, etc. in real-time for your satellite of choice.
 
 This program has two basic threads:
 
- - The background thread that constantly (once per second)  updates the values
-   for the satellite's location.
+ - The background thread that updates the values for the satellite's location.
  - The foreground thread that prompts you for commands and then executes them.
 
-The advantage of this model is that the program will always know where the
-satellite is, so this leaves room for future development on automatic
-alerts (at least while the program is running) for when the satellite is
-passing overhead.
+The advantage of this concurrent design is that the program will always know
+where the satellite is, so this leaves room for future development on automatic
+alerts in real-time for when the satellite is passing overhead or for other
+events.
 
-If your machine does not have multiple cores (perhaps it's a Raspberry Pi,
-for example), don't worry. SatelliteTracker will still run smoothly. Your
-machine should switch between the threads and run them concurrently, so
-you should notice very little difference in performance.
+### A note about parallelism in Python
+
+Python doesn't have great support for parallelism, which is unfortunate. Due to
+[Global Interpreter Lock](https://wiki.python.org/moin/GlobalInterpreterLock),
+a lot of Python code runs concurrently, even if you use the appropriate
+multithreading modules.
+
+This project does still work though. The background thread runs concurrently
+with the foreground thread, and they switch off often enough that everything
+works. So this means the project will still run smoothly, even if you have a
+singe-core machine (such as a Raspberry Pi).

@@ -14,9 +14,45 @@ import time
 import urllib2
 from SunriseSunsetCalculator.sunrise_sunset import SunriseSunset
 try:
+    import ephem
+except ImportError:
+    print 'Error: you must install the pyephem python module with pip'
+    exit(1)
+
+try:
     import dbus
 except ImportError:
     print 'Warning: could not import dbus module'
+
+## Global 'constants'
+REFRESH_TIME = 1 # in seconds
+TLE_URL = 'http://www.celestrak.com/NORAD/elements/stations.txt'
+ISS_FULL_NAME = 'ISS (ZARYA)'
+ISS_NICKNAME = 'ISS'
+
+DATA_DIR = os.path.join(os.path.expanduser('~'), '.satTracker')
+TLE_FILE = os.path.join(DATA_DIR, 'tles.txt')
+GRND_FILE = os.path.join(DATA_DIR, 'grnd.txt')
+CRON_FILE = os.path.join(DATA_DIR, 'cron.txt')
+CURRENT_SAT_FILE = os.path.join(DATA_DIR, 'current.txt')
+
+## Colors
+COL_NORMAL = '\033[0m'
+COL_GREY = '\033[90m'
+COL_RED = '\033[91m'
+COL_GREEN = '\033[92m'
+COL_YELLOW = '\033[93m'
+COL_BLUE = '\033[94m'
+COL_PURPLE = '\033[95m'
+COL_CYAN = '\033[96m'
+COL_WHITE = '\033[97m'
+
+## Global variables
+grnd = None
+sat = None
+displacement = None
+is_frozen = None
+p_time = None
 
 class Ground(object):
     """Wrapper class for the pyephem ground observer object"""
@@ -66,72 +102,9 @@ class Ground(object):
         else:
             return self.ssc.calculate(arg)
 
-def handle_dependencies():
-    """Installs dependencies for the project (related to self-installer)"""
-
-    returner = 0
-
-    lin_install = """
-    sudo apt-get install python-pip
-    sudo apt-get install python-dev
-    sudo pip install pyephem
-    """
-
-    # Brew may be the necessary form of installation, depending on which install
-    # of python is used
-    mac_install = """
-    sudo easy_install pip
-    sudo pip install pyephem
-    """
-
-    install_cmds = lin_install # default
-    print "You don't have pyephem installed!"
-    print 'Install it like so:'
-    if sys.platform == 'linux' or sys.platform == 'linux2':
-        print lin_install
-        install_cmds = lin_install
-    elif sys.platform == 'darwin':
-        print mac_install
-        install_cmds = mac_install
-    else:
-        print 'Your system is not currently supported, so it may not work.'
-        print 'Try:\nsudo pip install pyephem'
-        return returner
-
-    msg = ('Would you like this program to install these dependencies for you? '
-           '(y/n) ')
-    resp = raw_input(msg)
-    if resp == 'y':
-        if os.system('which pip >/dev/null 2>&1') == 0:
-            # pip is already installed
-            cmd = 'sudo pip install pyephem'
-            print cmd
-            result = os.system(cmd)
-            if result != 0:
-                print 'There was some failure with the command'
-                returner = result
-
-        else:
-            for cmd in install_cmds.split('\n'):
-                print cmd
-                result = os.system(cmd)
-                if result != 0:
-                    print 'There was some failure with the command'
-                    returner = result
-
-    return returner
-
-try:
-    import ephem
-except ImportError:
-    RET = handle_dependencies()
-    exit(RET)
-
-## Global 'constants'
-REFRESH_TIME = 1 # in seconds
-TLE_URL = 'http://www.celestrak.com/NORAD/elements/stations.txt'
-ISS_FULL_NAME = 'ISS (ZARYA)'
-ISS_NICKNAME = 'ISS'
+#######################################
+## Functions
+#######################################
 
 def clear_screen():
     """Utility to clear the terminal screen"""
@@ -139,34 +112,6 @@ def clear_screen():
         os.system('clear')
     else:
         os.system('cls')
-
-DATA_DIR = os.path.join(os.path.expanduser('~'), '.satTracker')
-TLE_FILE = os.path.join(DATA_DIR, 'tles.txt')
-GRND_FILE = os.path.join(DATA_DIR, 'grnd.txt')
-CRON_FILE = os.path.join(DATA_DIR, 'cron.txt')
-CURRENT_SAT_FILE = os.path.join(DATA_DIR, 'current.txt')
-
-## Colors
-COL_NORMAL = '\033[0m'
-COL_GREY = '\033[90m'
-COL_RED = '\033[91m'
-COL_GREEN = '\033[92m'
-COL_YELLOW = '\033[93m'
-COL_BLUE = '\033[94m'
-COL_PURPLE = '\033[95m'
-COL_CYAN = '\033[96m'
-COL_WHITE = '\033[97m'
-
-## Global variables
-grnd = None
-sat = None
-displacement = None
-is_frozen = None
-p_time = None
-
-#######################################
-## Functions
-#######################################
 
 def kill_program(status):
     """

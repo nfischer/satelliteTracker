@@ -390,15 +390,15 @@ def set_satellite(full_name, nick_name=''):
 
 def output_now():
     """
-    By default, it prints the current time in UTC and local time This will
+    By default, it prints the current time in local time and UTC. This will
     print the time being tracked by the program if the user has adjusted the
-    time forward or backward
+    time forward or backward.
     """
-    e_time = ephem.Date(p_time)
-    l_time = ephem.localtime(e_time).replace(microsecond=0)
+    u_time = p_time.replace(microsecond=0)
+    l_time = ephem.localtime(ephem.Date(u_time)).replace(microsecond=0)
     cti = 'Current time is'+COL_YELLOW
     print cti, l_time, COL_NORMAL + 'local time'
-    print cti, e_time, COL_NORMAL + 'UTC'
+    print cti, u_time, COL_NORMAL + 'UTC'
     return
 
 def update_tle():
@@ -408,8 +408,7 @@ def update_tle():
     @throws ValueError, urllib2.URLError
     """
 
-    # fetch the raw data
-
+    # Fetch the raw data
     # May throw ValueError or urllib2.URLError
     response = urllib2.urlopen(TLE_URL)
 
@@ -440,6 +439,7 @@ def update_sat():
     """This is the function that updates the satellite object's position info"""
     try:
         has_shown_pass = False
+        passing_overhead_msg = sat.name + ' is currently passing overhead'
         while 1:
             if is_frozen == False:
                 global p_time
@@ -454,11 +454,10 @@ def update_sat():
                 end_time = ephem.localtime(my_pass_tuple[4])
                 if start_time > end_time and (not has_shown_pass):
                     # This can only happen if we're in a pass right now
-                    msg_string = sat.name + ' is currently passing overhead'
                     try:
-                        notify(msg_string)
+                        notify(passing_overhead_msg)
                     except dbus.DBusException:
-                        print msg_string
+                        print passing_overhead_msg
                     has_shown_pass = True
                 elif start_time < end_time and has_shown_pass:
                     has_shown_pass = False

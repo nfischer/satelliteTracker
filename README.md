@@ -1,34 +1,27 @@
 satelliteTracker
 ----------------
 
-A Python program to track the location of the ISS and possibly other
-satellites.
+A Python CLI program to track the location of the ISS and other satellites.
 
 Installation
 ------------
 
-This relies on several other modules, so you'll need to make sure these are
-installed.
+### Cloning the project
 
-### Pyephem
-
-```Bash
-$ sudo pip install pyephem
-```
-
-### Satellite Tracker
+The recommended installation method is to first clone this git repo, as such:
 
 ```Bash
+# make sure to specify '--recursive' in order to install the submodules
 $ git clone --recursive https://github.com/nfischer/satelliteTracker.git
-$ # make sure to specify '--recursive' in order to install the submodule
 ```
 
 ### SunriseSunsetCalculator
 
 This project uses Jacques-Etienne Beaudet's
 [SunriseSunsetCalculator](https://github.com/jebeaudet/SunriseSunsetCalculator),
-based on the algorithm for calculating sunrise and sunset found
-[here](http://williams.best.vwh.net/sunrise_sunset_algorithm.htm)
+based on [this
+algorithm](http://williams.best.vwh.net/sunrise_sunset_algorithm.htm) for
+calculating sunrise and sunset
 
 If you specified the `--recursive` flag when cloning, you should see a directory
 structure like:
@@ -44,12 +37,18 @@ satelliteTracker/
     sunrise_sunset.py
 ```
 
-If so, you're done! Otherwise, you will need to install the submodule manually:
+### [Pyephem](http://rhodesmill.org/pyephem/)
+
+Before installing this module, you'll need to install pip:
 
 ```Bash
-$ cd satelliteTracker/
-$ git submodule init
-$ git submodule update
+$ sudo apt-get install python-pip python-dev
+```
+
+Then install dependencies with:
+
+```Bash
+$ sudo pip install -r requirements.txt
 ```
 
 And that's it, you're off to the races!
@@ -62,11 +61,9 @@ SatelliteTracker can:
  - update a satellite's location in real-time
  - provide accurate longitude, latitude, elevation, and other location
    parameters
- - display information about your ground station, as well as the next time a
-   satellite passes over your ground station
- - automatically update TLEs for the ISS
- - notify you if your ground station data is incorrectly formatted
-
+ - display information about your ground station, as well as the next time your
+   satellite passes overhead
+ - automatically update TLEs for various satellites
 
 How does it work?
 -----------------
@@ -92,6 +89,6 @@ a lot of Python code runs concurrently, even if you use the appropriate
 multithreading modules.
 
 This project does still work though. The background thread runs concurrently
-with the foreground thread, and they switch off often enough that everything
+with the foreground thread, and they context switch often enough that everything
 works. So this means the project will still run smoothly, even if you have a
 singe-core machine (such as a Raspberry Pi).

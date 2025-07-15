@@ -59,32 +59,32 @@ p_time = None
 
 class Ground(object):
     """Wrapper class for the pyephem ground observer object"""
-    def __init__(self, longitude, latitude, elevation, offset=0):
+    def __init__(self, latitude, longitude, elevation, offset=0):
         self.observer = ephem.Observer()
         deg180 = 180 * ephem.degree
         deg90 = 90 * ephem.degree
-        if longitude > deg180 or longitude < -1 * deg180:
-            raise ValueError('Invalid longitude')
         if latitude > deg90 or latitude < -1 * deg90:
             raise ValueError('Invalid latitude')
+        if longitude > deg180 or longitude < -1 * deg180:
+            raise ValueError('Invalid longitude')
         if elevation < 0 or elevation > 8848: # height of Mt. Everest
             raise ValueError('Invalid elevation')
 
         # Set the SunriseSunset object
-        deg_long = longitude / ephem.degree
         deg_lat = latitude / ephem.degree
+        deg_long = longitude / ephem.degree
         self.ssc = SunriseSunset(dt=datetime.datetime.now(),
-                                 longitude=deg_long, latitude=deg_lat,
+                                 latitude=deg_lat, longitude=deg_long,
                                  localOffset=offset)
-        self.observer.long = longitude
         self.observer.lat = latitude
+        self.observer.long = longitude
         self.observer.elev = elevation
 
     # Accessors
-    def longitude(self):
-        return self.observer.long
     def latitude(self):
         return self.observer.lat
+    def longitude(self):
+        return self.observer.long
     def elevation(self):
         return self.observer.elev
 
@@ -160,62 +160,61 @@ def set_grnd():
     try:
         with open(GRND_FILE, 'r') as fname:
             lines = fname.read().split('\n')
-        g_long = float(lines[0])
-        g_lat = float(lines[1])
+        g_lat = float(lines[0])
+        g_long = float(lines[1])
         g_elev = float(lines[2])
         offset = float(lines[3])
     except (IOError, IndexError, ValueError):
         raise ValueError('Improperly formatted ground file')
 
     global grnd
-    grnd = Ground(g_long, g_lat, g_elev, offset)
+    grnd = Ground(g_lat, g_long, g_elev, offset)
 
 def update_grnd():
     """This allows users to change the ground station information"""
 
     print('Please enter information for your ground observer:')
-    print('Leave a line blank to use the default value (for O.C.).')
-    u_long = input('Longitude (degrees): ')
-    u_lat = input('Latitude (degrees): ')
-    u_elev = input('Elevation (m): ')
-    u_tzn  = input('Timezone offset: ')
-
-    default_long = -118.45
-    default_lat = 34.0665
-    default_elev = 95.0
-    default_tzn = -8
-
-    # set values
-    try:
-        u_long = float(u_long)
-    except ValueError:
-        u_long = default_long
+    u_lat = input('Latitude (°N), use (-) for °S: ')
+    u_long = input('Longitude (°E), use (-) for °W: ')
+    u_elev = input('Elevation (meters): ')
+    u_tzn  = input('Timezone offset from UTC (+/-): ')
 
     try:
         u_lat = float(u_lat)
     except ValueError:
-        u_lat = default_lat
+        print(f'Invalid latitude: {u_lat}')
+        raise
+
+    try:
+        u_long = float(u_long)
+    except ValueError:
+        print(f'Invalid longitude: {u_long}')
+        raise
 
     try:
         u_elev = float(u_elev)
     except ValueError:
-        u_elev = default_elev
+        print(f'Invalid elevation: {u_elev}')
+        raise
 
     # check validity of values & their types
     if u_elev < 0:
-        u_elev = default_elev
+        print('Warning: minimum supported elevation is 0 meters. Clamping value to 0.')
+        u_elev = 0
 
+    # TODO(nfischer): capture the timezone from the system clock.
     try:
         u_tzn = float(u_tzn)
     except ValueError:
-        u_tzn = default_tzn
+        print(f'Invalid timezone: {u_tzn}')
+        raise
 
     # convert to radians
-    u_long = u_long * ephem.degree
     u_lat = u_lat * ephem.degree
+    u_long = u_long * ephem.degree
 
     # write values to file
-    grnd_str = '\n'.join([str(u_long), str(u_lat), str(u_elev), str(u_tzn), ''])
+    grnd_str = '\n'.join([str(u_lat), str(u_long), str(u_elev), str(u_tzn), ''])
     print(grnd_str)
     with open(GRND_FILE, 'w') as fname:
         fname.write(grnd_str)
@@ -228,23 +227,18 @@ def install_program():
     Creates the directory and asks for input for ground observer info.
     """
 
-    print("""
-    Would you like to allow issTracker to install on your computer?
-
-    It will create on your computer:
-
-    - a file to save TLE info for your satellites
-    - a file to save longitude and latitude for your ground station
-    - a directory within your home directory where these files will be saved
-
+    print(f"""
+    Would you like to allow satTracker to install on your computer?
+    This will store satellite TLE data and your ground station data
+    (ex. latitude/longitude) in {DATA_DIR}.
     """)
 
-    decision = input('Do you want to install issTracker? (y/n): ')
+    decision = input('Do you want to install satTracker? (y/N): ')
     if decision != 'y':
-        print('Not installing. Terminating issTracker.')
+        print('Not installing. Terminating satTracker.')
         exit(1)
 
-    print('\nInstalling issTracker\n')
+    print('\nInstalling satTracker\n')
 
     # make the directory
     if not os.path.isdir(DATA_DIR):
@@ -267,7 +261,7 @@ def install_program():
 
 
 def is_installed():
-    """returns True if issTracker.py appears to be installed correctly"""
+    """returns True if satTracker.py appears to be installed correctly"""
 
     return os.path.isdir(DATA_DIR) and os.path.exists(GRND_FILE)
 
@@ -314,22 +308,22 @@ def handle_time(argv):
 
 def output_grnd():
     """Prints output for user's groundstation"""
-    g_long = grnd.longitude()
     g_lat = grnd.latitude()
+    g_long = grnd.longitude()
     g_elev = grnd.elevation()
 
     print('Printing info for your ground observer:')
-    print('long:' + COL_BLUE, g_long, COL_NORMAL)
-    print('lat: ' + COL_BLUE, g_lat, COL_NORMAL)
-    print('elev:', g_elev)
+    print('lat: ' + COL_BLUE, g_lat, '°N', COL_NORMAL)
+    print('long:' + COL_BLUE, g_long, '°E', COL_NORMAL)
+    print('elev:', g_elev, 'm')
     return
 
 def output_sat():
     """Prints output for the satellite"""
 
     s_name = sat.name
-    s_long = sat.sublong
     s_lat = sat.sublat
+    s_long = sat.sublong
     s_az = sat.az
     s_alt = sat.alt
     s_elev = sat.elevation
@@ -344,8 +338,8 @@ def output_sat():
         set_time = None
         night_time = False
     print(s_name)
-    print('long:', COL_GREEN, s_long, COL_NORMAL)
     print('lat: ', COL_GREEN, s_lat, COL_NORMAL)
+    print('long:', COL_GREEN, s_long, COL_NORMAL)
     print('azimuth:', s_az)
     print('altitude:', s_alt)
     print('elevation:', s_elev)
@@ -504,10 +498,10 @@ def matches(str1, str2):
 def usage():
     """Outputs help info when the user inputs 'help' at the command line"""
     print("""
-To enter a command to issTracker, enter one or more characters at the start
+To enter a command to satTracker, enter one or more characters at the start
 of the desired command option.
 
-issTracker command prompt options:
+satTracker command prompt options:
 
 quit                              This quits the application cleanly
 help                              This displays this help message
@@ -609,7 +603,7 @@ def main():
     if datetime.datetime.now() > (stamp + delta):
         # TLE is old
         msg = ('Your TLE is getting a little stale. Would you like to update '
-               'it? (y/n) ')
+               'it? (y/N) ')
         resp = input(msg)
         if resp == 'y':
             try:

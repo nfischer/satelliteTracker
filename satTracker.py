@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 
 #######################################
@@ -11,22 +11,25 @@ import signal
 import sys
 import threading
 import time
-import urllib2
+import urllib
+from urllib.request import urlopen
+from urllib.error import URLError
 from SunriseSunsetCalculator.sunrise_sunset import SunriseSunset
 try:
     import ephem
 except ImportError:
-    print 'Error: you must install the pyephem python module with pip'
+    print('Error: you must install the ephem python module')
+    print('Install with `pip3 install ephem` or `sudo apt install python3-ephem`')
     exit(1)
 
 try:
     import dbus
 except ImportError:
-    print 'Warning: could not import dbus module'
+    print('Warning: could not import dbus module')
 
 ## Global 'constants'
 REFRESH_TIME = 1 # in seconds
-TLE_URL = 'http://www.celestrak.com/NORAD/elements/stations.txt'
+TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle'
 ISS_FULL_NAME = 'ISS (ZARYA)'
 ISS_NICKNAME = 'ISS'
 
@@ -119,7 +122,7 @@ def kill_program(status):
     if there are ever multiple threads that should be killed
     """
 
-    print '\nProgram is terminating.'
+    print('\nProgram is terminating.')
     # kills main & all daemon threads
     os._exit(status)
 
@@ -170,12 +173,12 @@ def set_grnd():
 def update_grnd():
     """This allows users to change the ground station information"""
 
-    print 'Please enter information for your ground observer:'
-    print 'Leave a line blank to use the default value (for O.C.).'
-    u_long = raw_input('Longitude (degrees): ')
-    u_lat = raw_input('Latitude (degrees): ')
-    u_elev = raw_input('Elevation (m): ')
-    u_tzn  = raw_input('Timezone offset: ')
+    print('Please enter information for your ground observer:')
+    print('Leave a line blank to use the default value (for O.C.).')
+    u_long = input('Longitude (degrees): ')
+    u_lat = input('Latitude (degrees): ')
+    u_elev = input('Elevation (m): ')
+    u_tzn  = input('Timezone offset: ')
 
     default_long = -118.45
     default_lat = 34.0665
@@ -213,7 +216,7 @@ def update_grnd():
 
     # write values to file
     grnd_str = '\n'.join([str(u_long), str(u_lat), str(u_elev), str(u_tzn), ''])
-    print grnd_str
+    print(grnd_str)
     with open(GRND_FILE, 'w') as fname:
         fname.write(grnd_str)
 
@@ -225,7 +228,7 @@ def install_program():
     Creates the directory and asks for input for ground observer info.
     """
 
-    print """
+    print("""
     Would you like to allow issTracker to install on your computer?
 
     It will create on your computer:
@@ -234,32 +237,28 @@ def install_program():
     - a file to save longitude and latitude for your ground station
     - a directory within your home directory where these files will be saved
 
-    """
+    """)
 
-    decision = raw_input('Do you want to install issTracker? (y/n): ')
+    decision = input('Do you want to install issTracker? (y/n): ')
     if decision != 'y':
-        print 'Not installing. Terminating issTracker.'
+        print('Not installing. Terminating issTracker.')
         exit(1)
 
-    print '\nInstalling issTracker\n'
+    print('\nInstalling issTracker\n')
 
     # make the directory
     if not os.path.isdir(DATA_DIR):
         try:
             os.mkdir(DATA_DIR)
         except OSError:
-            print 'There was an error installing the program.'
+            print('There was an error installing the program.')
             exit(1)
 
     if not os.path.exists(GRND_FILE):
         update_grnd()
 
     if not os.path.exists(TLE_FILE):
-        try:
-            update_tle()
-        except (ValueError, urllib2.URLError):
-            print 'Unable to download a TLE. Check your network connection'
-            exit(1)
+        update_tle()
 
     if not os.path.exists(CURRENT_SAT_FILE):
         save_current(ISS_FULL_NAME, ISS_NICKNAME)
@@ -280,19 +279,17 @@ def handle_time(argv):
     if argc == 2:
         # check for single-argument commands
         if matches(fst, 'reset'):
-            print "Time is reset to 'now'"
-            global displacement
+            print("Time is reset to 'now'")
             displacement = datetime.timedelta()
-            global is_frozen
             is_frozen = False
         elif matches(fst, 'freeze') or matches(fst, 'frozen'):
             is_frozen = True
-            print "Time is now frozen. Use 'time unfreeze' to undo this."
+            print("Time is now frozen. Use 'time unfreeze' to undo this.")
         elif matches(fst, 'unfreeze'):
             is_frozen = False
-            print 'Time is now unfrozen.'
+            print('Time is now unfrozen.')
         else:
-            print "Unknown time argument '%s'" % fst
+            print("Unknown time argument '%s'" % fst)
         return
     elif argc > 2:
         scnd = argv[2]
@@ -321,10 +318,10 @@ def output_grnd():
     g_lat = grnd.latitude()
     g_elev = grnd.elevation()
 
-    print 'Printing info for your ground observer:'
-    print 'long:' + COL_BLUE, g_long, COL_NORMAL
-    print 'lat: ' + COL_BLUE, g_lat, COL_NORMAL
-    print 'elev:', g_elev
+    print('Printing info for your ground observer:')
+    print('long:' + COL_BLUE, g_long, COL_NORMAL)
+    print('lat: ' + COL_BLUE, g_lat, COL_NORMAL)
+    print('elev:', g_elev)
     return
 
 def output_sat():
@@ -346,18 +343,18 @@ def output_sat():
         time_of_pass = None
         set_time = None
         night_time = False
-    print s_name
-    print 'long:', COL_GREEN, s_long, COL_NORMAL
-    print 'lat: ', COL_GREEN, s_lat, COL_NORMAL
-    print 'azimuth:', s_az
-    print 'altitude:', s_alt
-    print 'elevation:', s_elev
+    print(s_name)
+    print('long:', COL_GREEN, s_long, COL_NORMAL)
+    print('lat: ', COL_GREEN, s_lat, COL_NORMAL)
+    print('azimuth:', s_az)
+    print('altitude:', s_alt)
+    print('elevation:', s_elev)
     if time_of_pass is not None:
         suffix = 'local time ' + ('(night)' if night_time else '(day time)')
-        print 'next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + suffix
-        print 'end time:   ' + COL_YELLOW, set_time, COL_NORMAL
+        print('next pass at' + COL_YELLOW, time_of_pass, COL_NORMAL + suffix)
+        print('end time:   ' + COL_YELLOW, set_time, COL_NORMAL)
     else:
-        print COL_PURPLE + 'This satellite will never pass' + COL_NORMAL
+        print(COL_PURPLE + 'This satellite will never pass' + COL_NORMAL)
     return
 
 def set_satellite(full_name, nick_name=''):
@@ -391,32 +388,32 @@ def set_satellite(full_name, nick_name=''):
 def output_now():
     """
     By default, it prints the current time in local time and UTC. This will
-    print the time being tracked by the program if the user has adjusted the
+    print(the time being tracked by the program if the user has adjusted the)
     time forward or backward.
     """
     u_time = p_time.replace(microsecond=0)
     l_time = ephem.localtime(ephem.Date(u_time)).replace(microsecond=0)
     cti = 'Current time is'+COL_YELLOW
-    print cti, l_time, COL_NORMAL + 'local time'
-    print cti, u_time, COL_NORMAL + 'UTC'
+    print(cti, l_time, COL_NORMAL + 'local time')
+    print(cti, u_time, COL_NORMAL + 'UTC')
     return
 
 def update_tle():
     """
     Updates the program's TLEs for satellites
 
-    @throws ValueError, urllib2.URLError
+    @throws ValueError, urllib.URLError
     """
 
     # Fetch the raw data
-    # May throw ValueError or urllib2.URLError
-    response = urllib2.urlopen(TLE_URL)
+    # May throw ValueError or urllib.URLError
+    response = urlopen(TLE_URL)
 
     if response.getcode() != 200:
         raise ValueError('Could not update TLE: status was %d' % response.getcode())
     if response.geturl() != TLE_URL:
         raise ValueError('URL was redirected')
-    raw_text = response.read() # returns a string
+    raw_text = response.read().decode('utf-8') # returns a string
 
     # write the data to file
     formatted_text = '\n'.join([k.strip() for k in raw_text.split('\n')])
@@ -442,11 +439,10 @@ def update_sat():
         passing_overhead_msg = sat.name + ' is currently passing overhead'
         while 1:
             if is_frozen == False:
-                global p_time
-                p_time = datetime.datetime.utcnow() + displacement
+                p_time = datetime.datetime.now(datetime.UTC) + displacement
+                global grnd
                 grnd.set_date(p_time)
 
-            global sat
             sat.compute(grnd.observer)
             try:
                 my_pass_tuple = grnd.next_pass(sat)
@@ -457,7 +453,7 @@ def update_sat():
                     try:
                         notify(passing_overhead_msg)
                     except dbus.DBusException:
-                        print passing_overhead_msg
+                        print(passing_overhead_msg)
                     has_shown_pass = True
                 elif start_time < end_time and has_shown_pass:
                     has_shown_pass = False
@@ -467,8 +463,8 @@ def update_sat():
 
             time.sleep(REFRESH_TIME)
     except Exception as e:
-        print type(e)
-        print e
+        print(type(e))
+        print(e)
         kill_program(1)
 
 # def cron_daemon():
@@ -481,7 +477,7 @@ def update_sat():
 #         with open(CRON_FILE, 'r') as fname:
 #             job_text = fname.read()
 #         my_jobs = job_text.split('\n')
-#     # print 'Jobs are loaded'
+#     # print('Jobs are loaded')
 #     # Loop for new jobs
 #     while True:
 #         # Check jobs
@@ -507,7 +503,7 @@ def matches(str1, str2):
 
 def usage():
     """Outputs help info when the user inputs 'help' at the command line"""
-    print """
+    print("""
 To enter a command to issTracker, enter one or more characters at the start
 of the desired command option.
 
@@ -528,14 +524,14 @@ print (or simply hitting enter)   Display satellite location and time of next
 list_stations                     Display the station list
 choose_station <satellite-name>   Change the station to a different space
                                   station in the station list
-"""
+""")
     return
 
 def prompt():
     """Creates a command line within the program"""
     try:
         while 1:
-            text = raw_input('\nPress enter to see values, q to quit: ')
+            text = input('\nPress enter to see values, q to quit: ')
             key_list = list()
             key = ''
             if text != '':
@@ -552,40 +548,40 @@ def prompt():
                 clear_screen()
             elif matches(key, 'update'):
                 try:
-                    print 'Updating your TLE...'
+                    print('Updating your TLE...')
                     update_tle()
-                    print 'Successfully updated your TLE!'
-                except (ValueError, urllib2.URLError):
-                    print 'Unable to update TLE. Check your network connection'
+                    print('Successfully updated your TLE!')
+                except (ValueError, urllib.URLError):
+                    print('Unable to update TLE. Check your network connection')
             elif matches(key, 'grnd') or key == 'ground':
                 output_grnd()
             elif matches(key, 'choose_station'):
                 if len(key_list) < 2:
-                    print 'Must specify a station to change to'
+                    print('Must specify a station to change to')
                     continue
                 my_sat = ' '.join(key_list[1:])
                 nick_name = None
                 for station in all_stations():
                     if my_sat == station:
-                        print 'Switching to satellite %s' % station
-                        nick_name = raw_input('Enter a short name: ')
+                        print('Switching to satellite %s' % station)
+                        nick_name = input('Enter a short name: ')
                         set_satellite(station, nick_name)
                         break
                 if nick_name is None:
-                    print 'Unable to find a satellite named "%s"' % my_sat
+                    print('Unable to find a satellite named "%s"' % my_sat)
             elif matches(key, 'list_stations'):
                 for k in all_stations():
-                    print k
+                    print(k)
             elif matches(key, 'now'):
                 output_now()
             elif matches(key, 'change'):
                 update_grnd()
                 try:
                     set_grnd()
-                    print 'Your update of ground station info is complete.'
+                    print('Your update of ground station info is complete.')
                     output_grnd()
                 except ValueError:
-                    print 'It appears there was an error with your grnd values.'
+                    print('It appears there was an error with your grnd values.')
                     kill_program(1)
             elif matches(key, 'time'):
                 handle_time(key_list)
@@ -593,8 +589,8 @@ def prompt():
             else:
                 output_sat()
     except Exception as e:
-        print type(e)
-        print e
+        print(type(e))
+        print(e)
         kill_program(1)
 
 
@@ -614,18 +610,18 @@ def main():
         # TLE is old
         msg = ('Your TLE is getting a little stale. Would you like to update '
                'it? (y/n) ')
-        resp = raw_input(msg)
+        resp = input(msg)
         if resp == 'y':
             try:
                 update_tle()
-            except (ValueError, urllib2.URLError):
-                print 'Unable to update TLE. Continuing anyway with old values'
+            except (ValueError, urllib.URLError):
+                print('Unable to update TLE. Continuing anyway with old values')
 
     # read in last satellite viewed
     try:
         full_name, short_name = get_current()
     except (IOError, IndexError):
-        print 'Unable to find your satellite, defaulting to ISS'
+        print('Unable to find your satellite, defaulting to ISS')
         save_current(ISS_FULL_NAME, ISS_NICKNAME)
 
     # pull the TLE from disc
@@ -636,7 +632,7 @@ def main():
         # there was an error with the file format or the file did not exist
         try:
             update_tle()
-        except (ValueError, urllib2.URLError):
+        except (ValueError, urllib.URLError):
             kill_program(1)
 
         try:
@@ -657,17 +653,17 @@ def main():
         # there was an error with the file format or the file did not exist
         msg = (COL_RED + 'Error with ground file. ' + COL_NORMAL +
                'Please update it with valid information.')
-        print msg
+        print(msg)
         update_grnd()
         try:
             set_grnd()
         except:
-            print 'Unable to load valid ground information'
+            print('Unable to load valid ground information')
             exit(1)
 
     # set time
     global p_time
-    p_time = datetime.datetime.utcnow()
+    p_time = datetime.datetime.now(datetime.UTC)
     global displacement
     displacement = datetime.timedelta() # initialize to zero
     global is_frozen

@@ -1,12 +1,10 @@
-satelliteTracker
-----------------
+# satelliteTracker
 
 A Python CLI program to track the location of the ISS and other satellites.
 
-Installation
-------------
+## Installation
 
-### Cloning the project
+## Cloning the project
 
 The recommended installation method is to first clone this git repo, as such:
 
@@ -15,7 +13,7 @@ The recommended installation method is to first clone this git repo, as such:
 $ git clone --recursive https://github.com/nfischer/satelliteTracker.git
 ```
 
-### SunriseSunsetCalculator
+## SunriseSunsetCalculator
 
 This project uses Jacques-Etienne Beaudet's
 [SunriseSunsetCalculator](https://github.com/jebeaudet/SunriseSunsetCalculator),
@@ -37,24 +35,22 @@ satelliteTracker/
     sunrise_sunset.py
 ```
 
-### [Pyephem](http://rhodesmill.org/pyephem/)
+## Installing dependencies: [Pyephem](http://rhodesmill.org/pyephem/)
 
-Before installing this module, you'll need to install pip:
+Ubuntu/Debian:
 
 ```Bash
-$ sudo apt-get install python-pip python-dev
+$ sudo apt install python3-ephem
 ```
 
-Then install dependencies with:
+Other systems (replace `apt` with your system's package manager):
 
 ```Bash
+$ sudo apt install python3-pip
 $ sudo pip install -r requirements.txt
 ```
 
-And that's it, you're off to the races!
-
-What can it do?
----------------
+## What can it do?
 
 SatelliteTracker can:
 
@@ -65,8 +61,7 @@ SatelliteTracker can:
    satellite passes overhead
  - automatically update TLEs for various satellites
 
-How does it work?
------------------
+## How does it work?
 
 This project is made using the pyephem module to do the cool computations for
 longitude, latitude, etc. in real-time for your satellite of choice.
